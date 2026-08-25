@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestionnaire de Factures Sécurisé</title>
+    <title>Suivi Factures & Kilométrage</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    
     <style>
         :root {
             --bg: #0f172a;
@@ -28,9 +28,6 @@
         h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 10px; }
         p.sub { color: var(--text-sub); font-size: 0.85rem; margin-bottom: 16px; }
 
-        .sync-box { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; margin-bottom: 10px; }
-        @media (max-width: 600px) { .sync-box { grid-template-columns: 1fr; } }
-        
         form { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; }
         @media (max-width: 600px) { form { grid-template-columns: 1fr; } }
 
@@ -61,15 +58,9 @@
 
 <div class="container">
     <div class="card">
-        <h1><i class="fa-solid fa-lock" style="color: var(--accent);"></i> Espace Sécurisé</h1>
-        <p class="sub">Choisissez un mot clé (ex: monespace) et un mot de passe pour synchroniser vos données.</p>
-        
-        <div class="sync-box">
-            <input type="text" id="spaceKey" placeholder="Nom d'espace (ex: monespace)">
-            <input type="password" id="spacePass" placeholder="Mot de passe secret">
-            <button class="btn" id="btnSync"><i class="fa-solid fa-key"></i> Connexion</button>
-        </div>
-        <div id="statusMsg"></div>
+        <h1><i class="fa-solid fa-cloud-arrow-up" style="color: var(--accent);"></i> Suivi des Factures</h1>
+        <p class="sub">Synchronisation automatique via JSONBin.</p>
+        <div id="statusMsg"><span class="status-badge" style="background:rgba(255,255,255,0.1)">Connexion...</span></div>
     </div>
 
     <div class="stats">
@@ -106,86 +97,29 @@
 </div>
 
 <script>
+    // -------------------------------------------------------------
+    // REMPLACE AVEC TES IDENTIFIANTS JSONBIN :
+    // -------------------------------------------------------------
+    const BIN_ID = "6a8d684923a2f6593e5a08fd";
+    const MASTER_KEY = "$2a$10$AKtu/W1D75liyqsmK/BEWegvvTEvz3Gg7xFx/x0WaANLB68xTu3Cu";
+
     let factures = [];
 
-    let currentKey = localStorage.getItem('inv_key') || 'monespace';
-    let currentPass = localStorage.getItem('inv_pass') || '1234';
-
-    document.getElementById('spaceKey').value = currentKey;
-    document.getElementById('spacePass').value = currentPass;
-
-    function cleanKey(str) {
-        return str.toLowerCase().replace(/[^a-z0-9]/g, '');
-    }
-
-    function chiffrer(data, secret) {
-        return CryptoJS.AES.encrypt(JSON.stringify(data), secret).toString();
-    }
-
-    function dechiffrer(ciphertext, secret) {
-        try {
-            const bytes = CryptoJS.AES.decrypt(ciphertext, secret);
-            const decryptedData = bytes.toString(CryptoJS.enc.Utf8);
-            return decryptedData ? JSON.parse(decryptedData) : null;
-        } catch (e) {
-            return null;
-        }
-    }
-
-    // Hash simple du nom d'espace pour créer un identifiant unique
-    function hashKey(key) {
-        return CryptoJS.MD5("my_invoice_prefix_" + key).toString();
-    }
-
     async function chargerDonnees() {
-        const inputKey = document.getElementById('spaceKey').value.trim();
-        const inputPass = document.getElementById('spacePass').value.trim();
-
-        if (!inputKey || !inputPass) {
-            document.getElementById('statusMsg').innerHTML = `<span class="status-badge status-err">Remplissez le nom d'espace ET le mot de passe</span>`;
-            return;
-        }
-
-        currentKey = cleanKey(inputKey);
-        currentPass = inputPass;
-
-        localStorage.setItem('inv_key', currentKey);
-        localStorage.setItem('inv_pass', currentPass);
-
         const statusMsg = document.getElementById('statusMsg');
-        statusMsg.innerHTML = `<span class="status-badge" style="background:rgba(255,255,255,0.1)">Chargement en cours...</span>`;
-
-        const blobId = hashKey(currentKey);
-
         try {
-            const res = await fetch(`https://kvdb.io/4y91pYpW9M4mN9L4v5g4mX/${blobId}`);
+            const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+                headers: { 'X-Master-Key': MASTER_KEY }
+            });
             if (res.ok) {
                 const data = await res.json();
-                if (data && data.payload) {
-                    const facturesDechiffrees = dechiffrer(data.payload, currentPass);
-                    if (facturesDechiffrees !== null) {
-                        factures = facturesDechiffrees;
-                        statusMsg.innerHTML = `<span class="status-badge status-ok"><i class="fa-solid fa-lock-open"></i> Connecté à "${currentKey}"</span>`;
-                    } else {
-                        factures = [];
-                        statusMsg.innerHTML = `<span class="status-badge status-err"><i class="fa-solid fa-triangle-exclamation"></i> Mot de passe incorrect !</span>`;
-                    }
-                } else {
-                    factures = [];
-                    statusMsg.innerHTML = `<span class="status-badge status-ok"><i class="fa-solid fa-plus"></i> Nouvel espace initialisé</span>`;
-                }
+                factures = data.record || [];
+                statusMsg.innerHTML = `<span class="status-badge status-ok"><i class="fa-solid fa-check"></i> Connecté & Synchro</span>`;
             } else {
-                factures = [];
-                statusMsg.innerHTML = `<span class="status-badge status-ok"><i class="fa-solid fa-plus"></i> Nouvel espace initialisé</span>`;
+                statusMsg.innerHTML = `<span class="status-badge status-err">Erreur de chargement</span>`;
             }
         } catch (e) {
-            // Mode fallback local en cas de problème réseau
-            const localData = localStorage.getItem(`local_${currentKey}`);
-            if (localData) {
-                const facturesDechiffrees = dechiffrer(localData, currentPass);
-                if (facturesDechiffrees !== null) factures = facturesDechiffrees;
-            }
-            statusMsg.innerHTML = `<span class="status-badge status-ok"><i class="fa-solid fa-check"></i> Espace prêt (mode local)</span>`;
+            statusMsg.innerHTML = `<span class="status-badge status-err">Erreur Réseau</span>`;
         }
         afficher();
     }
@@ -193,28 +127,24 @@
     async function sauvegarder() {
         afficher();
         const statusMsg = document.getElementById('statusMsg');
-        const blobId = hashKey(currentKey);
+        statusMsg.innerHTML = `<span class="status-badge" style="background:rgba(255,255,255,0.1)">Sauvegarde...</span>`;
 
         try {
-            const payloadChiffre = chiffrer(factures, currentPass);
-
-            // Sauvegarde locale
-            localStorage.setItem(`local_${currentKey}`, payloadChiffre);
-
-            // Sauvegarde cloud
-            const res = await fetch(`https://kvdb.io/4y91pYpW9M4mN9L4v5g4mX/${blobId}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ payload: payloadChiffre })
+            const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Master-Key': MASTER_KEY
+                },
+                body: JSON.stringify(factures)
             });
-
             if (res.ok) {
                 statusMsg.innerHTML = `<span class="status-badge status-ok"><i class="fa-solid fa-check"></i> Enregistré & Synchronisé !</span>`;
             } else {
-                statusMsg.innerHTML = `<span class="status-badge status-ok"><i class="fa-solid fa-check"></i> Enregistré en local</span>`;
+                statusMsg.innerHTML = `<span class="status-badge status-err">Erreur de sauvegarde</span>`;
             }
         } catch (e) {
-            statusMsg.innerHTML = `<span class="status-badge status-ok"><i class="fa-solid fa-check"></i> Enregistré en local</span>`;
+            statusMsg.innerHTML = `<span class="status-badge status-err">Erreur de connexion</span>`;
         }
     }
 
@@ -263,8 +193,6 @@
         sauvegarder();
     }
 
-    document.getElementById('btnSync').addEventListener('click', chargerDonnees);
-    
     chargerDonnees();
 </script>
 
