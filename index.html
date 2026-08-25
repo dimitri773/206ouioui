@@ -6,7 +6,6 @@
     <title>Gestionnaire de Factures Sécurisé</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Bibliothèque de chiffrement CryptoJS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <style>
         :root {
@@ -63,12 +62,12 @@
 <div class="container">
     <div class="card">
         <h1><i class="fa-solid fa-lock" style="color: var(--accent);"></i> Espace Sécurisé</h1>
-        <p class="sub">Entrez votre nom d'espace et votre mot de passe pour accéder à vos données chiffrées.</p>
+        <p class="sub">Choisissez un mot clé (ex: monespace) et un mot de passe pour synchroniser vos données.</p>
         
         <div class="sync-box">
-            <input type="text" id="spaceKey" placeholder="Nom d'espace (ex: garage59)">
+            <input type="text" id="spaceKey" placeholder="Nom d'espace (ex: monespace)">
             <input type="password" id="spacePass" placeholder="Mot de passe secret">
-            <button class="btn" id="btnSync"><i class="fa-solid fa-key"></i> Déverrouiller</button>
+            <button class="btn" id="btnSync"><i class="fa-solid fa-key"></i> Connexion</button>
         </div>
         <div id="statusMsg"></div>
     </div>
@@ -108,10 +107,8 @@
 
 <script>
     let factures = [];
-    const PANTRY_ID = "011ad7a4-845f-4221-a185-c89b7dca685f"; 
 
-    // Restauration des identifiants enregistrés localement
-    let currentKey = localStorage.getItem('inv_key') || 'monespace123';
+    let currentKey = localStorage.getItem('inv_key') || 'monespace';
     let currentPass = localStorage.getItem('inv_pass') || '1234';
 
     document.getElementById('spaceKey').value = currentKey;
@@ -121,12 +118,10 @@
         return str.toLowerCase().replace(/[^a-z0-9]/g, '');
     }
 
-    // Chiffrement des données avant envoi
     function chiffrer(data, secret) {
         return CryptoJS.AES.encrypt(JSON.stringify(data), secret).toString();
     }
 
-    // Déchiffrement des données à la réception
     function dechiffrer(ciphertext, secret) {
         try {
             const bytes = CryptoJS.AES.decrypt(ciphertext, secret);
@@ -135,6 +130,11 @@
         } catch (e) {
             return null;
         }
+    }
+
+    // Hash simple du nom d'espace pour créer un identifiant unique
+    function hashKey(key) {
+        return CryptoJS.MD5("my_invoice_prefix_" + key).toString();
     }
 
     async function chargerDonnees() {
@@ -153,32 +153,39 @@
         localStorage.setItem('inv_pass', currentPass);
 
         const statusMsg = document.getElementById('statusMsg');
-        statusMsg.innerHTML = `<span class="status-badge" style="background:rgba(255,255,255,0.1)">Vérification du mot de passe...</span>`;
+        statusMsg.innerHTML = `<span class="status-badge" style="background:rgba(255,255,255,0.1)">Chargement en cours...</span>`;
+
+        const blobId = hashKey(currentKey);
 
         try {
-            const res = await fetch(`https://getpantry.cloud/apiv1/pantry/${PANTRY_ID}/basket/${currentKey}`);
+            const res = await fetch(`https://kvdb.io/4y91pYpW9M4mN9L4v5g4mX/${blobId}`);
             if (res.ok) {
                 const data = await res.json();
-                
-                if (data.payload) {
+                if (data && data.payload) {
                     const facturesDechiffrees = dechiffrer(data.payload, currentPass);
                     if (facturesDechiffrees !== null) {
                         factures = facturesDechiffrees;
-                        statusMsg.innerHTML = `<span class="status-badge status-ok"><i class="fa-solid fa-lock-open"></i> Accès accordé à "${currentKey}"</span>`;
+                        statusMsg.innerHTML = `<span class="status-badge status-ok"><i class="fa-solid fa-lock-open"></i> Connecté à "${currentKey}"</span>`;
                     } else {
                         factures = [];
                         statusMsg.innerHTML = `<span class="status-badge status-err"><i class="fa-solid fa-triangle-exclamation"></i> Mot de passe incorrect !</span>`;
                     }
                 } else {
                     factures = [];
-                    await sauvegarder();
+                    statusMsg.innerHTML = `<span class="status-badge status-ok"><i class="fa-solid fa-plus"></i> Nouvel espace initialisé</span>`;
                 }
             } else {
                 factures = [];
-                await sauvegarder();
+                statusMsg.innerHTML = `<span class="status-badge status-ok"><i class="fa-solid fa-plus"></i> Nouvel espace initialisé</span>`;
             }
         } catch (e) {
-            statusMsg.innerHTML = `<span class="status-badge status-err">Erreur de connexion</span>`;
+            // Mode fallback local en cas de problème réseau
+            const localData = localStorage.getItem(`local_${currentKey}`);
+            if (localData) {
+                const facturesDechiffrees = dechiffrer(localData, currentPass);
+                if (facturesDechiffrees !== null) factures = facturesDechiffrees;
+            }
+            statusMsg.innerHTML = `<span class="status-badge status-ok"><i class="fa-solid fa-check"></i> Espace prêt (mode local)</span>`;
         }
         afficher();
     }
@@ -186,18 +193,28 @@
     async function sauvegarder() {
         afficher();
         const statusMsg = document.getElementById('statusMsg');
+        const blobId = hashKey(currentKey);
 
         try {
             const payloadChiffre = chiffrer(factures, currentPass);
 
-            await fetch(`https://getpantry.cloud/apiv1/pantry/${PANTRY_ID}/basket/${currentKey}`, {
+            // Sauvegarde locale
+            localStorage.setItem(`local_${currentKey}`, payloadChiffre);
+
+            // Sauvegarde cloud
+            const res = await fetch(`https://kvdb.io/4y91pYpW9M4mN9L4v5g4mX/${blobId}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ payload: payloadChiffre })
             });
-            statusMsg.innerHTML = `<span class="status-badge status-ok"><i class="fa-solid fa-check"></i> Données chiffrées & enregistrées !</span>`;
+
+            if (res.ok) {
+                statusMsg.innerHTML = `<span class="status-badge status-ok"><i class="fa-solid fa-check"></i> Enregistré & Synchronisé !</span>`;
+            } else {
+                statusMsg.innerHTML = `<span class="status-badge status-ok"><i class="fa-solid fa-check"></i> Enregistré en local</span>`;
+            }
         } catch (e) {
-            statusMsg.innerHTML = `<span class="status-badge status-err">Erreur de sauvegarde</span>`;
+            statusMsg.innerHTML = `<span class="status-badge status-ok"><i class="fa-solid fa-check"></i> Enregistré en local</span>`;
         }
     }
 
@@ -232,10 +249,6 @@
 
     document.getElementById('factureForm').addEventListener('submit', (e) => {
         e.preventDefault();
-        if (!currentPass) {
-            alert("Veuillez d'abord déverrouiller votre espace avec un mot de passe.");
-            return;
-        }
         factures.push({
             libelle: document.getElementById('libelle').value,
             montant: document.getElementById('montant').value,
