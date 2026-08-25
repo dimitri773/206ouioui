@@ -3,10 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Suivi Factures & Kilométrage</title>
+    <title>Gestionnaire de Factures</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
     <style>
         :root {
             --bg: #0f172a;
@@ -28,11 +27,11 @@
         h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 10px; }
         p.sub { color: var(--text-sub); font-size: 0.85rem; margin-bottom: 16px; }
 
-        form { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; }
-        @media (max-width: 600px) { form { grid-template-columns: 1fr; } }
-
-        input { background: var(--input); border: 1px solid rgba(255,255,255,0.1); padding: 10px 14px; border-radius: 6px; color: #fff; font-size: 0.9rem; outline: none; }
-        input:focus { border-color: var(--accent); }
+        .login-box { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; }
+        @media (max-width: 600px) { .login-box { grid-template-columns: 1fr; } }
+        
+        select, input { background: var(--input); border: 1px solid rgba(255,255,255,0.1); padding: 10px 14px; border-radius: 6px; color: #fff; font-size: 0.9rem; outline: none; }
+        select:focus, input:focus { border-color: var(--accent); }
 
         .btn { background: var(--accent); color: white; border: none; padding: 10px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; justify-content: center; }
         .btn:hover { background: var(--accent-hover); }
@@ -42,6 +41,9 @@
         .stat-val { font-size: 1.4rem; font-weight: 700; color: var(--success); margin-top: 4px; }
         .stat-label { font-size: 0.75rem; color: var(--text-sub); text-transform: uppercase; font-weight: 600; }
 
+        form { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; }
+        @media (max-width: 600px) { form { grid-template-columns: 1fr; } }
+
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.9rem; }
         th { color: var(--text-sub); font-size: 0.75rem; text-transform: uppercase; }
@@ -49,110 +51,149 @@
         .btn-del { background: rgba(239, 68, 68, 0.2); color: var(--danger); border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; }
         .btn-del:hover { background: var(--danger); color: white; }
 
-        .status-badge { font-size: 0.8rem; padding: 4px 8px; border-radius: 4px; display: inline-block; margin-top: 5px; }
+        .status-badge { font-size: 0.8rem; padding: 4px 8px; border-radius: 4px; display: inline-block; margin-top: 10px; }
         .status-ok { background: rgba(16, 185, 129, 0.2); color: var(--success); }
         .status-err { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+        
+        #appContent { display: none; flex-direction: column; gap: 20px; }
     </style>
 </head>
 <body>
 
 <div class="container">
+    <!-- Espace Connexion -->
     <div class="card">
-        <h1><i class="fa-solid fa-cloud-arrow-up" style="color: var(--accent);"></i> Suivi des Factures</h1>
-        <p class="sub">Synchronisation automatique direct Cloud sans compte.</p>
-        <div id="statusMsg"><span class="status-badge" style="background:rgba(255,255,255,0.1)">Chargement des données...</span></div>
+        <h1><i class="fa-solid fa-lock" style="color: var(--accent);"></i> Connexion Compte</h1>
+        <p class="sub">Sélectionne un utilisateur et entre ton mot de passe.</p>
+        
+        <div class="login-box">
+            <select id="selectCompte">
+                <!-- Les comptes s'affichent automatiquement ici -->
+            </select>
+            <input type="password" id="inputPass" placeholder="Mot de passe">
+            <button class="btn" id="btnLogin"><i class="fa-solid fa-right-to-bracket"></i> Se connecter</button>
+        </div>
+        <div id="statusMsg"></div>
     </div>
 
-    <div class="stats">
-        <div class="stat-card">
-            <div class="stat-label">Total Dépenses</div>
-            <div class="stat-val" id="totalPrix">0.00 €</div>
+    <!-- Application (masquée avant connexion) -->
+    <div id="appContent">
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-label">Total Dépenses</div>
+                <div class="stat-val" id="totalPrix">0.00 €</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Dernier Kilométrage</div>
+                <div class="stat-val" id="dernierKm" style="color: #3b82f6;">0.0 km</div>
+            </div>
         </div>
-        <div class="stat-card">
-            <div class="stat-label">Dernier Kilométrage</div>
-            <div class="stat-val" id="dernierKm" style="color: #3b82f6;">0.0 km</div>
+
+        <div class="card">
+            <form id="factureForm" style="margin-bottom: 20px;">
+                <input type="text" id="libelle" placeholder="Libellé / Description" required>
+                <input type="number" id="montant" placeholder="Prix (€)" step="0.01" required>
+                <input type="number" id="km" placeholder="Distance / Km au compteur" step="0.1" required>
+                <button type="submit" class="btn"><i class="fa-solid fa-plus"></i> Ajouter</button>
+            </form>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Facture</th>
+                        <th>Prix</th>
+                        <th>Kilométrage</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="tableauBody"></tbody>
+            </table>
         </div>
-    </div>
-
-    <div class="card">
-        <form id="factureForm" style="margin-bottom: 20px;">
-            <input type="text" id="libelle" placeholder="Libellé / Description" required>
-            <input type="number" id="montant" placeholder="Prix (€)" step="0.01" required>
-            <input type="number" id="km" placeholder="Distance / Km au compteur" step="0.1" required>
-            <button type="submit" class="btn"><i class="fa-solid fa-plus"></i> Ajouter</button>
-        </form>
-
-        <table>
-            <thead>
-                <tr>
-                    <th>Facture</th>
-                    <th>Prix</th>
-                    <th>Kilométrage</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody id="tableauBody"></tbody>
-        </table>
     </div>
 </div>
 
 <script>
-    // Identifiant unique pré-généré pour ton application (tu peux le modifier si tu veux)
-    const APP_STORAGE_URL = "https://api.counterapi.dev/v1/factures_dimitris_garage_59/data";
-    
-    // Serveur principal de stockage JSON direct
-    const DB_ENDPOINT = "https://kvdb.io/4y91pYpW9M4mN9L4v5g4mX/garage_factures_v1";
+    // -------------------------------------------------------------
+    // CONFIGURATION DES COMPTES ET MOTS DE PASSE (MODIFIABLE ICI)
+    // -------------------------------------------------------------
+    const COMPTES = [
+        { nom: "Compte Principal", pass: "1234" },
+        { nom: "Compte Secondaire", pass: "5678" }
+    ];
 
+    // Endpoint Cloud (Bases de données synchronisées)
+    const ENDPOINT = "https://api.counterapi.dev/v1/garage_dimitri_v2_data/data";
+
+    let compteActuel = null;
     let factures = [];
 
-    async function chargerDonnees() {
+    // Remplissage de la liste déroulante
+    const select = document.getElementById('selectCompte');
+    COMPTES.forEach((c, index) => {
+        const opt = document.createElement('option');
+        opt.value = index;
+        opt.textContent = c.nom;
+        select.appendChild(opt);
+    });
+
+    // Connexion
+    document.getElementById('btnLogin').addEventListener('click', () => {
+        const indexSelected = select.value;
+        const passEntered = document.getElementById('inputPass').value;
+        const targetCompte = COMPTES[indexSelected];
         const statusMsg = document.getElementById('statusMsg');
+
+        if (passEntered === targetCompte.pass) {
+            compteActuel = targetCompte.nom;
+            statusMsg.innerHTML = `<span class="status-badge status-ok"><i class="fa-solid fa-circle-check"></i> Connecté à ${compteActuel}</span>`;
+            document.getElementById('appContent').style.display = 'flex';
+            chargerDonnees();
+        } else {
+            statusMsg.innerHTML = `<span class="status-badge status-err"><i class="fa-solid fa-triangle-exclamation"></i> Mot de passe incorrect</span>`;
+        }
+    });
+
+    // Chargement des factures (Cloud ou mémoire locale)
+    async function chargerDonnees() {
+        const keyLocal = `factures_${compteActuel}`;
         try {
-            const res = await fetch(DB_ENDPOINT + '?cache=' + Date.now());
+            const res = await fetch(`https://kvdb.io/4y91pYpW9M4mN9L4v5g4mX/${encodeURIComponent(compteActuel)}?t=` + Date.now());
             if (res.ok) {
                 const data = await res.json();
                 factures = Array.isArray(data) ? data : [];
-                localStorage.setItem('local_factures', JSON.stringify(factures));
-                statusMsg.innerHTML = `<span class="status-badge status-ok"><i class="fa-solid fa-check"></i> Synchronisé !</span>`;
+                localStorage.setItem(keyLocal, JSON.stringify(factures));
             } else {
-                recupererBackupLocal();
+                recupererLocal(keyLocal);
             }
         } catch (e) {
-            recupererBackupLocal();
+            recupererLocal(keyLocal);
         }
         afficher();
     }
 
-    function recupererBackupLocal() {
-        const local = localStorage.getItem('local_factures');
-        if (local) factures = JSON.parse(local);
-        document.getElementById('statusMsg').innerHTML = `<span class="status-badge status-ok"><i class="fa-solid fa-check"></i> En ligne (Mode Local)</span>`;
+    function recupererLocal(key) {
+        const local = localStorage.getItem(key);
+        factures = local ? JSON.parse(local) : [];
     }
 
+    // Sauvegarde des factures
     async function sauvegarder() {
         afficher();
-        const statusMsg = document.getElementById('statusMsg');
-        statusMsg.innerHTML = `<span class="status-badge" style="background:rgba(255,255,255,0.1)">Sauvegarde...</span>`;
-
-        localStorage.setItem('local_factures', JSON.stringify(factures));
+        const keyLocal = `factures_${compteActuel}`;
+        localStorage.setItem(keyLocal, JSON.stringify(factures));
 
         try {
-            const res = await fetch(DB_ENDPOINT, {
+            await fetch(`https://kvdb.io/4y91pYpW9M4mN9L4v5g4mX/${encodeURIComponent(compteActuel)}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(factures)
             });
-
-            if (res.ok) {
-                statusMsg.innerHTML = `<span class="status-badge status-ok"><i class="fa-solid fa-check"></i> Enregistré & Synchro !</span>`;
-            } else {
-                statusMsg.innerHTML = `<span class="status-badge status-ok"><i class="fa-solid fa-check"></i> Enregistré !</span>`;
-            }
         } catch (e) {
-            statusMsg.innerHTML = `<span class="status-badge status-ok"><i class="fa-solid fa-check"></i> Enregistré localement</span>`;
+            // Ignorer si échec réseau, la version locale reste sauvegardée
         }
     }
 
+    // Affichage dans le tableau
     function afficher() {
         const body = document.getElementById('tableauBody');
         body.innerHTML = '';
@@ -197,8 +238,6 @@
         factures.splice(index, 1);
         sauvegarder();
     }
-
-    chargerDonnees();
 </script>
 
 </body>
