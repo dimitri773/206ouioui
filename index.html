@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestionnaire de Factures Synchronisé</title>
+    <title>Suivi Factures Multi-Comptes</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <style>
         :root {
             --bg: #0f172a;
@@ -28,7 +29,7 @@
         p.sub { color: var(--text-sub); font-size: 0.85rem; margin-bottom: 16px; }
 
         .login-box { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; }
-        @media (max-width: 600px) { .login-box { grid-template-columns: 1fr; } }
+        @media (max-width: 600px) { .login-box, form { grid-template-columns: 1fr !important; } }
         
         select, input { background: var(--input); border: 1px solid rgba(255,255,255,0.1); padding: 10px 14px; border-radius: 6px; color: #fff; font-size: 0.9rem; outline: none; }
         select:focus, input:focus { border-color: var(--accent); }
@@ -42,8 +43,6 @@
         .stat-label { font-size: 0.75rem; color: var(--text-sub); text-transform: uppercase; font-weight: 600; }
 
         form { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; }
-        @media (max-width: 600px) { form { grid-template-columns: 1fr; } }
-
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.9rem; }
         th { color: var(--text-sub); font-size: 0.75rem; text-transform: uppercase; }
@@ -51,7 +50,7 @@
         .btn-del { background: rgba(239, 68, 68, 0.2); color: var(--danger); border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; }
         .btn-del:hover { background: var(--danger); color: white; }
 
-        .status-badge { font-size: 0.8rem; padding: 4px 8px; border-radius: 4px; display: inline-block; margin-top: 10px; }
+        .status-badge { font-size: 0.85rem; padding: 6px 10px; border-radius: 4px; display: inline-block; margin-top: 10px; }
         .status-ok { background: rgba(16, 185, 129, 0.2); color: var(--success); }
         .status-err { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
         
@@ -63,20 +62,18 @@
 <div class="container">
     <!-- Écran de connexion -->
     <div class="card">
-        <h1><i class="fa-solid fa-lock" style="color: var(--accent);"></i> Connexion Compte</h1>
-        <p class="sub">Sélectionne un profil pour charger sa base de données.</p>
+        <h1><i class="fa-solid fa-lock" style="color: var(--accent);"></i> Connexion Espace Factures</h1>
+        <p class="sub">Choisis un compte et entre le mot de passe pour charger tes données.</p>
         
         <div class="login-box">
-            <select id="selectCompte">
-                <!-- Généré dynamiquement -->
-            </select>
+            <select id="selectCompte"></select>
             <input type="password" id="inputPass" placeholder="Mot de passe">
             <button class="btn" id="btnLogin"><i class="fa-solid fa-right-to-bracket"></i> Connexion</button>
         </div>
         <div id="statusMsg"></div>
     </div>
 
-    <!-- Interface des factures -->
+    <!-- Interface Factures -->
     <div id="appContent">
         <div class="stats">
             <div class="stat-card">
@@ -112,29 +109,33 @@
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- SDK Firebase Realtime Database -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
 <script>
     // -------------------------------------------------------------
-    // 1. COMPTES & MOTS DE PASSE (Modifiables dans le code)
+    // 1. COMPTES ACCESSIBLES (Tu peux modifier les nom/pass ici)
     // -------------------------------------------------------------
     const COMPTES = [
-        { nom: "Compte 1", pass: "1234" },
-        { nom: "Compte 2", pass: "5678" }
+        { id: "compte_1", nom: "Compte 1", pass: "1234" },
+        { id: "compte_2", nom: "Compte 2", pass: "5678" }
     ];
 
     // -------------------------------------------------------------
-    // 2. CONFIGURATION DE LA BDD CLOUD (Supabase)
-    // Remplace les valeurs ci-dessous avec ton projet Supabase
+    // 2. CONFIGURATION DE LA BDD (Auto-créée & Publique)
     // -------------------------------------------------------------
-    const SUPABASE_URL = "https://viswevskvfcbpcngzato.supabase.co";
-    const SUPABASE_KEY = "sb_publishable_0U44OnRJY3_4K2PAoNASzQ_x_MNAhy0";
+    const firebaseConfig = {
+        databaseURL: "https://garage-factures-default-rtdb.europe-west1.firebasedatabase.app"
+    };
     
-    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
     let compteActuel = null;
-    let factures = [];
+    let factures = {};
 
-    // Initialisation du menu déroulant
+    // Remplit la liste déroulante des comptes
     const select = document.getElementById('selectCompte');
     COMPTES.forEach((c, index) => {
         const opt = document.createElement('option');
@@ -143,99 +144,75 @@
         select.appendChild(opt);
     });
 
-    // Connexion
-    document.getElementById('btnLogin').addEventListener('click', async () => {
-        const selected = COMPTES[select.value];
-        const passEntered = document.getElementById('inputPass').value;
+    // Gestion de la connexion
+    document.getElementById('btnLogin').addEventListener('click', () => {
+        const target = COMPTES[select.value];
+        const pass = document.getElementById('inputPass').value;
         const statusMsg = document.getElementById('statusMsg');
 
-        if (passEntered === selected.pass) {
-            compteActuel = selected.nom;
-            statusMsg.innerHTML = `<span class="status-badge status-ok"><i class="fa-solid fa-check"></i> Connecté à ${compteActuel}</span>`;
+        if (pass === target.pass) {
+            compteActuel = target.id;
+            statusMsg.innerHTML = `<span class="status-badge status-ok"><i class="fa-solid fa-circle-check"></i> Connecté à ${target.nom} - Synchro Active</span>`;
             document.getElementById('appContent').style.display = 'flex';
             
-            // Chargement initial des factures
-            await chargerFactures();
-            
-            // Écoute en temps réel : synchronise instantanément entre appareils
-            db.channel('realtime_factures')
-              .on('postgres_changes', { event: '*', schema: 'public', table: 'factures' }, payload => {
-                  chargerFactures();
-              })
-              .subscribe();
+            // Écoute en direct des changements dans la base de données
+            db.ref('comptes/' + compteActuel).on('value', (snapshot) => {
+                factures = snapshot.val() || {};
+                afficher();
+            });
 
         } else {
-            statusMsg.innerHTML = `<span class="status-badge status-err"><i class="fa-solid fa-xmark"></i> Mot de passe incorrect</span>`;
+            statusMsg.innerHTML = `<span class="status-badge status-err"><i class="fa-solid fa-triangle-exclamation"></i> Mot de passe incorrect</span>`;
         }
     });
 
-    // Charger les données depuis la base distante
-    async function chargerFactures() {
-        const { data, error } = await db
-            .from('factures')
-            .select('*')
-            .eq('compte', compteActuel)
-            .order('created_at', { ascending: true });
-
-        if (!error && data) {
-            factures = data;
-            afficher();
-        }
-    }
-
-    // Afficher les factures dans le DOM
+    // Affichage des factures et calculs des totaux
     function afficher() {
         const body = document.getElementById('tableauBody');
         body.innerHTML = '';
         let total = 0;
+        let dernierKmVal = 0;
 
-        factures.forEach(f => {
+        const keys = Object.keys(factures);
+        
+        keys.forEach(key => {
+            const f = factures[key];
             total += parseFloat(f.montant) || 0;
+            dernierKmVal = parseFloat(f.km) || dernierKmVal;
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${f.libelle}</td>
                 <td style="color:var(--success); font-weight:600;">${parseFloat(f.montant).toFixed(2)} €</td>
                 <td>${parseFloat(f.km).toFixed(1)} km</td>
-                <td><button class="btn-del" onclick="supprimer('${f.id}')"><i class="fa-solid fa-trash"></i></button></td>
+                <td><button class="btn-del" onclick="supprimer('${key}')"><i class="fa-solid fa-trash"></i></button></td>
             `;
             body.appendChild(tr);
         });
 
         document.getElementById('totalPrix').textContent = total.toFixed(2) + " €";
-        
-        if (factures.length > 0) {
-            const dernierKmVal = parseFloat(factures[factures.length - 1].km) || 0;
-            document.getElementById('dernierKm').textContent = dernierKmVal.toFixed(1) + " km";
-        } else {
-            document.getElementById('dernierKm').textContent = "0.0 km";
-        }
+        document.getElementById('dernierKm').textContent = dernierKmVal.toFixed(1) + " km";
     }
 
-    // Ajouter une facture dans la BDD
-    document.getElementById('factureForm').addEventListener('submit', async (e) => {
+    // Ajout d'une facture
+    document.getElementById('factureForm').addEventListener('submit', (e) => {
         e.preventDefault();
         
         const nouvelleFacture = {
-            compte: compteActuel,
             libelle: document.getElementById('libelle').value,
             montant: parseFloat(document.getElementById('montant').value),
-            km: parseFloat(document.getElementById('km').value)
+            km: parseFloat(document.getElementById('km').value),
+            timestamp: Date.now()
         };
 
-        const { error } = await db.from('factures').insert([nouvelleFacture]);
-        if (!error) {
-            e.target.reset();
-            await chargerFactures();
-        }
+        // Envoie directement la facture à la BDD qui se crée/met à jour toute seule
+        db.ref('comptes/' + compteActuel).push(nouvelleFacture);
+        e.target.reset();
     });
 
-    // Supprimer une facture de la BDD
-    async function supprimer(id) {
-        const { error } = await db.from('factures').delete().eq('id', id);
-        if (!error) {
-            await chargerFactures();
-        }
+    // Suppression d'une facture
+    function supprimer(key) {
+        db.ref('comptes/' + compteActuel + '/' + key).remove();
     }
 </script>
 
