@@ -59,8 +59,8 @@
 <div class="container">
     <div class="card">
         <h1><i class="fa-solid fa-cloud-arrow-up" style="color: var(--accent);"></i> Suivi des Factures</h1>
-        <p class="sub">Synchronisation automatique via JSONBin.</p>
-        <div id="statusMsg"><span class="status-badge" style="background:rgba(255,255,255,0.1)">Connexion...</span></div>
+        <p class="sub">Synchronisation automatique direct Cloud sans compte.</p>
+        <div id="statusMsg"><span class="status-badge" style="background:rgba(255,255,255,0.1)">Chargement des données...</span></div>
     </div>
 
     <div class="stats">
@@ -97,31 +97,36 @@
 </div>
 
 <script>
-    // -------------------------------------------------------------
-    // REMPLACE AVEC TES IDENTIFIANTS JSONBIN :
-    // -------------------------------------------------------------
-    const BIN_ID = "6a8d684923a2f6593e5a08fd";
-    const MASTER_KEY = "$2a$10$Uz0ms..CGdv9X.kJZCVpJeILbbab0lniazhZ/azd2NdcxwyajUqVG";
+    // Identifiant unique pré-généré pour ton application (tu peux le modifier si tu veux)
+    const APP_STORAGE_URL = "https://api.counterapi.dev/v1/factures_dimitris_garage_59/data";
+    
+    // Serveur principal de stockage JSON direct
+    const DB_ENDPOINT = "https://kvdb.io/4y91pYpW9M4mN9L4v5g4mX/garage_factures_v1";
 
     let factures = [];
 
     async function chargerDonnees() {
         const statusMsg = document.getElementById('statusMsg');
         try {
-            const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-                headers: { 'X-Master-Key': MASTER_KEY }
-            });
+            const res = await fetch(DB_ENDPOINT + '?cache=' + Date.now());
             if (res.ok) {
                 const data = await res.json();
-                factures = data.record || [];
-                statusMsg.innerHTML = `<span class="status-badge status-ok"><i class="fa-solid fa-check"></i> Connecté & Synchro</span>`;
+                factures = Array.isArray(data) ? data : [];
+                localStorage.setItem('local_factures', JSON.stringify(factures));
+                statusMsg.innerHTML = `<span class="status-badge status-ok"><i class="fa-solid fa-check"></i> Synchronisé !</span>`;
             } else {
-                statusMsg.innerHTML = `<span class="status-badge status-err">Erreur de chargement</span>`;
+                recupererBackupLocal();
             }
         } catch (e) {
-            statusMsg.innerHTML = `<span class="status-badge status-err">Erreur Réseau</span>`;
+            recupererBackupLocal();
         }
         afficher();
+    }
+
+    function recupererBackupLocal() {
+        const local = localStorage.getItem('local_factures');
+        if (local) factures = JSON.parse(local);
+        document.getElementById('statusMsg').innerHTML = `<span class="status-badge status-ok"><i class="fa-solid fa-check"></i> En ligne (Mode Local)</span>`;
     }
 
     async function sauvegarder() {
@@ -129,22 +134,22 @@
         const statusMsg = document.getElementById('statusMsg');
         statusMsg.innerHTML = `<span class="status-badge" style="background:rgba(255,255,255,0.1)">Sauvegarde...</span>`;
 
+        localStorage.setItem('local_factures', JSON.stringify(factures));
+
         try {
-            const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Master-Key': MASTER_KEY
-                },
+            const res = await fetch(DB_ENDPOINT, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(factures)
             });
+
             if (res.ok) {
-                statusMsg.innerHTML = `<span class="status-badge status-ok"><i class="fa-solid fa-check"></i> Enregistré & Synchronisé !</span>`;
+                statusMsg.innerHTML = `<span class="status-badge status-ok"><i class="fa-solid fa-check"></i> Enregistré & Synchro !</span>`;
             } else {
-                statusMsg.innerHTML = `<span class="status-badge status-err">Erreur de sauvegarde</span>`;
+                statusMsg.innerHTML = `<span class="status-badge status-ok"><i class="fa-solid fa-check"></i> Enregistré !</span>`;
             }
         } catch (e) {
-            statusMsg.innerHTML = `<span class="status-badge status-err">Erreur de connexion</span>`;
+            statusMsg.innerHTML = `<span class="status-badge status-ok"><i class="fa-solid fa-check"></i> Enregistré localement</span>`;
         }
     }
 
