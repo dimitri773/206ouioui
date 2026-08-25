@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestionnaire de Factures</title>
+    <title>Gestionnaire de Factures Synchronisé</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -61,22 +61,22 @@
 <body>
 
 <div class="container">
-    <!-- Espace Connexion -->
+    <!-- Écran de connexion -->
     <div class="card">
         <h1><i class="fa-solid fa-lock" style="color: var(--accent);"></i> Connexion Compte</h1>
-        <p class="sub">Sélectionne un utilisateur et entre ton mot de passe.</p>
+        <p class="sub">Sélectionne un profil pour charger sa base de données.</p>
         
         <div class="login-box">
             <select id="selectCompte">
-                <!-- Les comptes s'affichent automatiquement ici -->
+                <!-- Généré dynamiquement -->
             </select>
             <input type="password" id="inputPass" placeholder="Mot de passe">
-            <button class="btn" id="btnLogin"><i class="fa-solid fa-right-to-bracket"></i> Se connecter</button>
+            <button class="btn" id="btnLogin"><i class="fa-solid fa-right-to-bracket"></i> Connexion</button>
         </div>
         <div id="statusMsg"></div>
     </div>
 
-    <!-- Application (masquée avant connexion) -->
+    <!-- Interface des factures -->
     <div id="appContent">
         <div class="stats">
             <div class="stat-card">
@@ -93,7 +93,7 @@
             <form id="factureForm" style="margin-bottom: 20px;">
                 <input type="text" id="libelle" placeholder="Libellé / Description" required>
                 <input type="number" id="montant" placeholder="Prix (€)" step="0.01" required>
-                <input type="number" id="km" placeholder="Distance / Km au compteur" step="0.1" required>
+                <input type="number" id="km" placeholder="Km au compteur" step="0.1" required>
                 <button type="submit" class="btn"><i class="fa-solid fa-plus"></i> Ajouter</button>
             </form>
 
@@ -112,22 +112,29 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
     // -------------------------------------------------------------
-    // CONFIGURATION DES COMPTES ET MOTS DE PASSE (MODIFIABLE ICI)
+    // 1. COMPTES & MOTS DE PASSE (Modifiables dans le code)
     // -------------------------------------------------------------
     const COMPTES = [
-        { nom: "Compte Principal", pass: "1234" },
-        { nom: "Compte Secondaire", pass: "5678" }
+        { nom: "Compte 1", pass: "1234" },
+        { nom: "Compte 2", pass: "5678" }
     ];
 
-    // Endpoint Cloud (Bases de données synchronisées)
-    const ENDPOINT = "https://api.counterapi.dev/v1/garage_dimitri_v2_data/data";
+    // -------------------------------------------------------------
+    // 2. CONFIGURATION DE LA BDD CLOUD (Supabase)
+    // Remplace les valeurs ci-dessous avec ton projet Supabase
+    // -------------------------------------------------------------
+    const SUPABASE_URL = "https://TON_PROJET.supabase.co";
+    const SUPABASE_KEY = "TA_CLE_ANON_PUBLIC";
+    
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let compteActuel = null;
     let factures = [];
 
-    // Remplissage de la liste déroulante
+    // Initialisation du menu déroulant
     const select = document.getElementById('selectCompte');
     COMPTES.forEach((c, index) => {
         const opt = document.createElement('option');
@@ -137,106 +144,98 @@
     });
 
     // Connexion
-    document.getElementById('btnLogin').addEventListener('click', () => {
-        const indexSelected = select.value;
+    document.getElementById('btnLogin').addEventListener('click', async () => {
+        const selected = COMPTES[select.value];
         const passEntered = document.getElementById('inputPass').value;
-        const targetCompte = COMPTES[indexSelected];
         const statusMsg = document.getElementById('statusMsg');
 
-        if (passEntered === targetCompte.pass) {
-            compteActuel = targetCompte.nom;
-            statusMsg.innerHTML = `<span class="status-badge status-ok"><i class="fa-solid fa-circle-check"></i> Connecté à ${compteActuel}</span>`;
+        if (passEntered === selected.pass) {
+            compteActuel = selected.nom;
+            statusMsg.innerHTML = `<span class="status-badge status-ok"><i class="fa-solid fa-check"></i> Connecté à ${compteActuel}</span>`;
             document.getElementById('appContent').style.display = 'flex';
-            chargerDonnees();
+            
+            // Chargement initial des factures
+            await chargerFactures();
+            
+            // Écoute en temps réel : synchronise instantanément entre appareils
+            db.channel('realtime_factures')
+              .on('postgres_changes', { event: '*', schema: 'public', table: 'factures' }, payload => {
+                  chargerFactures();
+              })
+              .subscribe();
+
         } else {
-            statusMsg.innerHTML = `<span class="status-badge status-err"><i class="fa-solid fa-triangle-exclamation"></i> Mot de passe incorrect</span>`;
+            statusMsg.innerHTML = `<span class="status-badge status-err"><i class="fa-solid fa-xmark"></i> Mot de passe incorrect</span>`;
         }
     });
 
-    // Chargement des factures (Cloud ou mémoire locale)
-    async function chargerDonnees() {
-        const keyLocal = `factures_${compteActuel}`;
-        try {
-            const res = await fetch(`https://kvdb.io/4y91pYpW9M4mN9L4v5g4mX/${encodeURIComponent(compteActuel)}?t=` + Date.now());
-            if (res.ok) {
-                const data = await res.json();
-                factures = Array.isArray(data) ? data : [];
-                localStorage.setItem(keyLocal, JSON.stringify(factures));
-            } else {
-                recupererLocal(keyLocal);
-            }
-        } catch (e) {
-            recupererLocal(keyLocal);
-        }
-        afficher();
-    }
+    // Charger les données depuis la base distante
+    async function chargerFactures() {
+        const { data, error } = await db
+            .from('factures')
+            .select('*')
+            .eq('compte', compteActuel)
+            .order('created_at', { ascending: true });
 
-    function recupererLocal(key) {
-        const local = localStorage.getItem(key);
-        factures = local ? JSON.parse(local) : [];
-    }
-
-    // Sauvegarde des factures
-    async function sauvegarder() {
-        afficher();
-        const keyLocal = `factures_${compteActuel}`;
-        localStorage.setItem(keyLocal, JSON.stringify(factures));
-
-        try {
-            await fetch(`https://kvdb.io/4y91pYpW9M4mN9L4v5g4mX/${encodeURIComponent(compteActuel)}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(factures)
-            });
-        } catch (e) {
-            // Ignorer si échec réseau, la version locale reste sauvegardée
+        if (!error && data) {
+            factures = data;
+            afficher();
         }
     }
 
-    // Affichage dans le tableau
+    // Afficher les factures dans le DOM
     function afficher() {
         const body = document.getElementById('tableauBody');
         body.innerHTML = '';
-        let totalP = 0;
+        let total = 0;
 
-        factures.forEach((f, index) => {
-            totalP += parseFloat(f.montant) || 0;
+        factures.forEach(f => {
+            total += parseFloat(f.montant) || 0;
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${f.libelle}</td>
                 <td style="color:var(--success); font-weight:600;">${parseFloat(f.montant).toFixed(2)} €</td>
                 <td>${parseFloat(f.km).toFixed(1)} km</td>
-                <td><button class="btn-del" onclick="supprimer(${index})"><i class="fa-solid fa-trash"></i></button></td>
+                <td><button class="btn-del" onclick="supprimer('${f.id}')"><i class="fa-solid fa-trash"></i></button></td>
             `;
             body.appendChild(tr);
         });
 
-        document.getElementById('totalPrix').textContent = totalP.toFixed(2) + " €";
-
+        document.getElementById('totalPrix').textContent = total.toFixed(2) + " €";
+        
         if (factures.length > 0) {
-            const derniereFacture = factures[factures.length - 1];
-            const dernierKmVal = parseFloat(derniereFacture.km) || 0;
+            const dernierKmVal = parseFloat(factures[factures.length - 1].km) || 0;
             document.getElementById('dernierKm').textContent = dernierKmVal.toFixed(1) + " km";
         } else {
             document.getElementById('dernierKm').textContent = "0.0 km";
         }
     }
 
-    document.getElementById('factureForm').addEventListener('submit', (e) => {
+    // Ajouter une facture dans la BDD
+    document.getElementById('factureForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        factures.push({
+        
+        const nouvelleFacture = {
+            compte: compteActuel,
             libelle: document.getElementById('libelle').value,
-            montant: document.getElementById('montant').value,
-            km: document.getElementById('km').value
-        });
-        sauvegarder();
-        e.target.reset();
+            montant: parseFloat(document.getElementById('montant').value),
+            km: parseFloat(document.getElementById('km').value)
+        };
+
+        const { error } = await db.from('factures').insert([nouvelleFacture]);
+        if (!error) {
+            e.target.reset();
+            await chargerFactures();
+        }
     });
 
-    function supprimer(index) {
-        factures.splice(index, 1);
-        sauvegarder();
+    // Supprimer une facture de la BDD
+    async function supprimer(id) {
+        const { error } = await db.from('factures').delete().eq('id', id);
+        if (!error) {
+            await chargerFactures();
+        }
     }
 </script>
 
