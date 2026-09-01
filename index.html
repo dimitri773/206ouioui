@@ -1,220 +1,140 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Suivi Factures Multi-Comptes</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <style>
-        :root {
-            --bg: #0f172a;
-            --card: #1e293b;
-            --input: #334155;
-            --text: #f8fafc;
-            --text-sub: #94a3b8;
-            --accent: #6366f1;
-            --accent-hover: #4f46e5;
-            --danger: #ef4444;
-            --success: #10b981;
-        }
-
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
-        body { background: var(--bg); color: var(--text); padding: 20px; display: flex; justify-content: center; min-height: 100vh; }
-        .container { width: 100%; max-width: 800px; display: flex; flex-direction: column; gap: 20px; }
-
-        .card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); }
-        h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 10px; }
-        p.sub { color: var(--text-sub); font-size: 0.85rem; margin-bottom: 16px; }
-
-        .login-box { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; }
-        @media (max-width: 600px) { .login-box, form { grid-template-columns: 1fr !important; } }
-        
-        select, input { background: var(--input); border: 1px solid rgba(255,255,255,0.1); padding: 10px 14px; border-radius: 6px; color: #fff; font-size: 0.9rem; outline: none; }
-        select:focus, input:focus { border-color: var(--accent); }
-
-        .btn { background: var(--accent); color: white; border: none; padding: 10px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; justify-content: center; }
-        .btn:hover { background: var(--accent-hover); }
-
-        .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        .stat-card { background: var(--card); padding: 16px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.05); }
-        .stat-val { font-size: 1.4rem; font-weight: 700; color: var(--success); margin-top: 4px; }
-        .stat-label { font-size: 0.75rem; color: var(--text-sub); text-transform: uppercase; font-weight: 600; }
-
-        form { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.9rem; }
-        th { color: var(--text-sub); font-size: 0.75rem; text-transform: uppercase; }
-
-        .btn-del { background: rgba(239, 68, 68, 0.2); color: var(--danger); border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; }
-        .btn-del:hover { background: var(--danger); color: white; }
-
-        .status-badge { font-size: 0.85rem; padding: 6px 10px; border-radius: 4px; display: inline-block; margin-top: 10px; }
-        .status-ok { background: rgba(16, 185, 129, 0.2); color: var(--success); }
-        .status-err { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
-        
-        #appContent { display: none; flex-direction: column; gap: 20px; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Suivi Voiture</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --accent: #38bdf8;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+    }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      max-width: 500px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    h1 { text-align: center; color: var(--accent); }
+    .card {
+      background: var(--card);
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
+    }
+    label { display: block; margin-top: 10px; color: var(--muted); font-size: 0.9rem; }
+    input {
+      width: 100%;
+      padding: 10px;
+      margin-top: 4px;
+      border-radius: 6px;
+      border: 1px solid #334155;
+      background: #0f172a;
+      color: var(--text);
+      box-sizing: border-box;
+    }
+    button {
+      width: 100%;
+      background: var(--accent);
+      color: #0f172a;
+      font-weight: bold;
+      padding: 12px;
+      border: none;
+      border-radius: 6px;
+      margin-top: 15px;
+      cursor: pointer;
+    }
+    button:hover { opacity: 0.9; }
+    ul { list-style: none; padding: 0; }
+    li {
+      background: var(--card);
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      border-left: 4px solid var(--accent);
+    }
+    .date { font-size: 0.8rem; color: var(--muted); }
+  </style>
 </head>
 <body>
 
-<div class="container">
-    <!-- Écran de connexion -->
-    <div class="card">
-        <h1><i class="fa-solid fa-lock" style="color: var(--accent);"></i> Connexion Espace Factures</h1>
-        <p class="sub">Choisis un compte et entre le mot de passe pour charger tes données.</p>
-        
-        <div class="login-box">
-            <select id="selectCompte"></select>
-            <input type="password" id="inputPass" placeholder="Mot de passe">
-            <button class="btn" id="btnLogin"><i class="fa-solid fa-right-to-bracket"></i> Connexion</button>
-        </div>
-        <div id="statusMsg"></div>
-    </div>
+  <h1>Suivi Voiture</h1>
 
-    <!-- Interface Factures -->
-    <div id="appContent">
-        <div class="stats">
-            <div class="stat-card">
-                <div class="stat-label">Total Dépenses</div>
-                <div class="stat-val" id="totalPrix">0.00 €</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Dernier Kilométrage</div>
-                <div class="stat-val" id="dernierKm" style="color: #3b82f6;">0.0 km</div>
-            </div>
-        </div>
+  <div class="card">
+    <form id="carForm">
+      <label for="km">Kilométrage (km)</label>
+      <input type="number" id="km" step="0.1" placeholder="ex: 124500" required />
 
-        <div class="card">
-            <form id="factureForm" style="margin-bottom: 20px;">
-                <input type="text" id="libelle" placeholder="Libellé / Description" required>
-                <input type="number" id="montant" placeholder="Prix (€)" step="0.01" required>
-                <input type="number" id="km" placeholder="Km au compteur" step="0.1" required>
-                <button type="submit" class="btn"><i class="fa-solid fa-plus"></i> Ajouter</button>
-            </form>
+      <label for="montant">Montant (€)</label>
+      <input type="number" id="montant" step="0.01" placeholder="ex: 65.50" required />
 
-            <table>
-                <thead>
-                    <tr>
-                        <th>Facture</th>
-                        <th>Prix</th>
-                        <th>Kilométrage</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody id="tableauBody"></tbody>
-            </table>
-        </div>
-    </div>
-</div>
+      <label for="note">Note / Motif (Optionnel)</label>
+      <input type="text" id="note" placeholder="ex: Plein d'essence" />
 
-<!-- SDK Firebase Realtime Database -->
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+      <button type="submit">Enregistrer</button>
+    </form>
+  </div>
 
-<script>
-    // -------------------------------------------------------------
-    // 1. COMPTES ACCESSIBLES (Tu peux modifier les nom/pass ici)
-    // -------------------------------------------------------------
-    const COMPTES = [
-        { id: "compte_1", nom: "Compte 1", pass: "1234" },
-        { id: "compte_2", nom: "Compte 2", pass: "5678" }
-    ];
+  <h2>Historique</h2>
+  <ul id="logList"></ul>
 
-    // -------------------------------------------------------------
-    // 2. CONFIGURATION DE LA BDD (Auto-créée & Publique)
-    // -------------------------------------------------------------
-    const firebaseConfig = {
-        databaseURL: "https://garage-factures-default-rtdb.europe-west1.firebasedatabase.app"
-    };
-    
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+  <script>
+    // Configuration Supabase (Remplace avec tes identifiants Supabase)
+    const SUPABASE_URL = 'https://TON_PROJET.supabase.co';
+    const SUPABASE_KEY = 'TON_ANON_KEY';
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let compteActuel = null;
-    let factures = {};
+    const form = document.getElementById('carForm');
+    const logList = document.getElementById('logList');
 
-    // Remplit la liste déroulante des comptes
-    const select = document.getElementById('selectCompte');
-    COMPTES.forEach((c, index) => {
-        const opt = document.createElement('option');
-        opt.value = index;
-        opt.textContent = c.nom;
-        select.appendChild(opt);
-    });
+    async function fetchLogs() {
+      const { data, error } = await supabase
+        .from('trajets')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    // Gestion de la connexion
-    document.getElementById('btnLogin').addEventListener('click', () => {
-        const target = COMPTES[select.value];
-        const pass = document.getElementById('inputPass').value;
-        const statusMsg = document.getElementById('statusMsg');
+      if (error) return console.error(error);
 
-        if (pass === target.pass) {
-            compteActuel = target.id;
-            statusMsg.innerHTML = `<span class="status-badge status-ok"><i class="fa-solid fa-circle-check"></i> Connecté à ${target.nom} - Synchro Active</span>`;
-            document.getElementById('appContent').style.display = 'flex';
-            
-            // Écoute en direct des changements dans la base de données
-            db.ref('comptes/' + compteActuel).on('value', (snapshot) => {
-                factures = snapshot.val() || {};
-                afficher();
-            });
-
-        } else {
-            statusMsg.innerHTML = `<span class="status-badge status-err"><i class="fa-solid fa-triangle-exclamation"></i> Mot de passe incorrect</span>`;
-        }
-    });
-
-    // Affichage des factures et calculs des totaux
-    function afficher() {
-        const body = document.getElementById('tableauBody');
-        body.innerHTML = '';
-        let total = 0;
-        let dernierKmVal = 0;
-
-        const keys = Object.keys(factures);
-        
-        keys.forEach(key => {
-            const f = factures[key];
-            total += parseFloat(f.montant) || 0;
-            dernierKmVal = parseFloat(f.km) || dernierKmVal;
-
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${f.libelle}</td>
-                <td style="color:var(--success); font-weight:600;">${parseFloat(f.montant).toFixed(2)} €</td>
-                <td>${parseFloat(f.km).toFixed(1)} km</td>
-                <td><button class="btn-del" onclick="supprimer('${key}')"><i class="fa-solid fa-trash"></i></button></td>
-            `;
-            body.appendChild(tr);
-        });
-
-        document.getElementById('totalPrix').textContent = total.toFixed(2) + " €";
-        document.getElementById('dernierKm').textContent = dernierKmVal.toFixed(1) + " km";
+      logList.innerHTML = data.map(entry => `
+        <li>
+          <div>
+            <strong>${entry.km} km</strong> - ${entry.montant} €
+            ${entry.note ? `<br><small style="color:#94a3b8">${entry.note}</small>` : ''}
+          </div>
+          <div class="date">${new Date(entry.created_at).toLocaleDateString('fr-FR')}</div>
+        </li>
+      `).join('');
     }
 
-    // Ajout d'une facture
-    document.getElementById('factureForm').addEventListener('submit', (e) => {
-        e.preventDefault();
-        
-        const nouvelleFacture = {
-            libelle: document.getElementById('libelle').value,
-            montant: parseFloat(document.getElementById('montant').value),
-            km: parseFloat(document.getElementById('km').value),
-            timestamp: Date.now()
-        };
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const km = document.getElementById('km').value;
+      const montant = document.getElementById('montant').value;
+      const note = document.getElementById('note').value;
 
-        // Envoie directement la facture à la BDD qui se crée/met à jour toute seule
-        db.ref('comptes/' + compteActuel).push(nouvelleFacture);
-        e.target.reset();
+      const { error } = await supabase
+        .from('trajets')
+        .insert([{ km, montant, note }]);
+
+      if (error) {
+        alert("Erreur lors de l'enregistrement");
+        console.error(error);
+      } else {
+        form.reset();
+        fetchLogs();
+      }
     });
 
-    // Suppression d'une facture
-    function supprimer(key) {
-        db.ref('comptes/' + compteActuel + '/' + key).remove();
-    }
-</script>
-
+    fetchLogs();
+  </script>
 </body>
 </html>
