@@ -1,140 +1,196 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Suivi Voiture</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    :root {
-      --bg: #0f172a;
-      --card: #1e293b;
-      --accent: #38bdf8;
-      --text: #f8fafc;
-      --muted: #94a3b8;
-    }
-    body {
-      font-family: system-ui, -apple-system, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      max-width: 500px;
-      margin: 0 auto;
-      padding: 20px;
-    }
-    h1 { text-align: center; color: var(--accent); }
-    .card {
-      background: var(--card);
-      padding: 20px;
-      border-radius: 12px;
-      margin-bottom: 20px;
-      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
-    }
-    label { display: block; margin-top: 10px; color: var(--muted); font-size: 0.9rem; }
-    input {
-      width: 100%;
-      padding: 10px;
-      margin-top: 4px;
-      border-radius: 6px;
-      border: 1px solid #334155;
-      background: #0f172a;
-      color: var(--text);
-      box-sizing: border-box;
-    }
-    button {
-      width: 100%;
-      background: var(--accent);
-      color: #0f172a;
-      font-weight: bold;
-      padding: 12px;
-      border: none;
-      border-radius: 6px;
-      margin-top: 15px;
-      cursor: pointer;
-    }
-    button:hover { opacity: 0.9; }
-    ul { list-style: none; padding: 0; }
-    li {
-      background: var(--card);
-      padding: 12px 16px;
-      border-radius: 8px;
-      margin-bottom: 8px;
-      display: flex;
-      justify-content: space-between;
-      border-left: 4px solid var(--accent);
-    }
-    .date { font-size: 0.8rem; color: var(--muted); }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Facturation Pro - Générateur Officiel de Factures & Devis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { background: white !important; font-size: 12pt; }
+            .invoice-page { shadow: none !important; border: none !important; padding: 0 !important; width: 100% !important; }
+        }
+    </style>
 </head>
-<body>
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col">
 
-  <h1>Suivi Voiture</h1>
+    <!-- Navbar (Cachée à l'impression) -->
+    <header class="bg-slate-900 text-white shadow-lg no-print">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <span class="text-2xl">💼</span>
+                <h1 class="text-xl font-bold tracking-wide">Facturation Pro</h1>
+            </div>
+            <div class="flex items-center gap-4">
+                <button onclick="exportPDF()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-2 rounded-lg shadow transition flex items-center gap-2">
+                    📄 Télécharger en PDF
+                </button>
+                <button onclick="window.print()" class="bg-slate-700 hover:bg-slate-600 text-white text-sm font-semibold px-4 py-2 rounded-lg transition">
+                    🖨️ Imprimer
+                </button>
+            </div>
+        </div>
+    </header>
 
-  <div class="card">
-    <form id="carForm">
-      <label for="km">Kilométrage (km)</label>
-      <input type="number" id="km" step="0.1" placeholder="ex: 124500" required />
+    <main class="max-w-7xl mx-auto px-6 py-8 flex-grow w-full grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        <!-- Panneau de configuration / Édition (Caché à l'impression) -->
+        <div class="lg:col-span-5 space-y-6 no-print">
+            
+            <!-- Gestionnaire de Clients (IndexedDB) -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                <h2 class="text-lg font-bold text-slate-900 mb-4 flex items-center justify-between">
+                    <span>👥 Clients en Base de Données</span>
+                    <button onclick="openClientModal()" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-2.5 py-1.5 rounded">
+                        + Ajouter Client
+                    </button>
+                </h2>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Sélectionner un client enregistré</label>
+                    <select id="client-select" onchange="loadSelectedClient()" class="w-full border rounded-lg px-3 py-2 text-sm bg-slate-50 border-slate-300">
+                        <option value="">-- Choisir un client --</option>
+                    </select>
+                </div>
+            </div>
 
-      <label for="montant">Montant (€)</label>
-      <input type="number" id="montant" step="0.01" placeholder="ex: 65.50" required />
+            <!-- Éditeur de la Facture -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
+                <h2 class="text-lg font-bold text-slate-900 border-b pb-3">⚙️ Options du Document</h2>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Type</label>
+                        <select id="input-doc-type" onchange="updateInvoice()" class="w-full border rounded-lg px-3 py-2 text-sm border-slate-300">
+                            <option value="FACTURE">FACTURE</option>
+                            <option value="DEVIS">DEVIS</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">N° Document</label>
+                        <input type="text" id="input-number" value="FAC-2026-001" oninput="updateInvoice()" class="w-full border rounded-lg px-3 py-2 text-sm border-slate-300">
+                    </div>
+                </div>
 
-      <label for="note">Note / Motif (Optionnel)</label>
-      <input type="text" id="note" placeholder="ex: Plein d'essence" />
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Date d'émission</label>
+                        <input type="date" id="input-date" onchange="updateInvoice()" class="w-full border rounded-lg px-3 py-2 text-sm border-slate-300">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Date d'échéance</label>
+                        <input type="date" id="input-due-date" onchange="updateInvoice()" class="w-full border rounded-lg px-3 py-2 text-sm border-slate-300">
+                    </div>
+                </div>
 
-      <button type="submit">Enregistrer</button>
-    </form>
-  </div>
+                <!-- Informations Émetteur (Vos données) -->
+                <div class="border-t pt-4 space-y-2">
+                    <h3 class="text-sm font-semibold text-slate-700">Vos Informations (Émetteur)</h3>
+                    <input type="text" id="issuer-name" value="Mon Entreprise SAS" placeholder="Nom ou Raison sociale" oninput="updateInvoice()" class="w-full border rounded px-2.5 py-1.5 text-xs border-slate-300">
+                    <input type="text" id="issuer-address" value="10 rue de la Paix, 75000 Paris" placeholder="Adresse complète" oninput="updateInvoice()" class="w-full border rounded px-2.5 py-1.5 text-xs border-slate-300">
+                    <div class="grid grid-cols-2 gap-2">
+                        <input type="text" id="issuer-siret" value="SIRET: 123 456 789 00012" placeholder="N° SIRET" oninput="updateInvoice()" class="w-full border rounded px-2.5 py-1.5 text-xs border-slate-300">
+                        <input type="text" id="issuer-tva" value="TVA: FR 12 123456789" placeholder="N° TVA intra" oninput="updateInvoice()" class="w-full border rounded px-2.5 py-1.5 text-xs border-slate-300">
+                    </div>
+                </div>
 
-  <h2>Historique</h2>
-  <ul id="logList"></ul>
+                <!-- Taux de TVA -->
+                <div class="border-t pt-4">
+                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Taux de TVA (%)</label>
+                    <input type="number" id="input-tva-rate" value="20" step="0.1" oninput="updateInvoice()" class="w-full border rounded-lg px-3 py-2 text-sm border-slate-300">
+                </div>
 
-  <script>
-    // Configuration Supabase (Remplace avec tes identifiants Supabase)
-    const SUPABASE_URL = 'https://TON_PROJET.supabase.co';
-    const SUPABASE_KEY = 'TON_ANON_KEY';
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                <!-- Envoi rapide Gmail -->
+                <div class="border-t pt-4">
+                    <button onclick="sendViaGmail()" class="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2.5 rounded-lg text-sm shadow transition flex items-center justify-center gap-2">
+                        ✉️ Préparer l'envoi Gmail
+                    </button>
+                </div>
 
-    const form = document.getElementById('carForm');
-    const logList = document.getElementById('logList');
+            </div>
+        </div>
 
-    async function fetchLogs() {
-      const { data, error } = await supabase
-        .from('trajets')
-        .select('*')
-        .order('created_at', { ascending: false });
+        <!-- Prévisualisation & Document VRAIE FACTURE (Format A4 Imprimable / PDF) -->
+        <div class="lg:col-span-7 flex justify-center">
+            <div id="invoice-paper" class="invoice-page bg-white rounded-lg shadow-xl border border-slate-200 p-8 md:p-12 w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between text-slate-800">
+                
+                <div>
+                    <!-- En-tête Facture -->
+                    <div class="flex justify-between items-start border-b border-slate-200 pb-8 mb-8">
+                        <div>
+                            <h2 id="view-issuer-name" class="text-2xl font-bold text-slate-900">Mon Entreprise SAS</h2>
+                            <p id="view-issuer-address" class="text-sm text-slate-600 mt-1 whitespace-pre-line">10 rue de la Paix, 75000 Paris</p>
+                            <p id="view-issuer-siret" class="text-xs text-slate-500 mt-2">SIRET: 123 456 789 00012</p>
+                            <p id="view-issuer-tva" class="text-xs text-slate-500">TVA: FR 12 123456789</p>
+                        </div>
+                        <div class="text-right">
+                            <span id="view-doc-type" class="inline-block px-3 py-1 bg-indigo-100 text-indigo-800 font-bold text-sm tracking-wider uppercase rounded mb-2">FACTURE</span>
+                            <p id="view-doc-number" class="text-lg font-semibold text-slate-900">N° FAC-2026-001</p>
+                            <p class="text-xs text-slate-500 mt-2">Date: <span id="view-date" class="font-medium text-slate-700"></span></p>
+                            <p class="text-xs text-slate-500">Échéance: <span id="view-due-date" class="font-medium text-slate-700"></span></p>
+                        </div>
+                    </div>
 
-      if (error) return console.error(error);
+                    <!-- Informations Client destinataire -->
+                    <div class="bg-slate-50 rounded-lg p-5 mb-8 border border-slate-100">
+                        <p class="text-xs font-bold uppercase text-slate-400 tracking-wider mb-2">Facturé à :</p>
+                        <h3 id="view-client-name" class="text-lg font-bold text-slate-900">Client Démo SARL</h3>
+                        <p id="view-client-address" class="text-sm text-slate-600 whitespace-pre-line">42 Avenue des Champs-Élysées, 75008 Paris</p>
+                        <p id="view-client-email" class="text-sm text-slate-600 mt-1">contact@clientdemo.fr</p>
+                        <p id="view-client-siret" class="text-xs text-slate-500 mt-1">SIRET: 987 654 321 00054</p>
+                    </div>
 
-      logList.innerHTML = data.map(entry => `
-        <li>
-          <div>
-            <strong>${entry.km} km</strong> - ${entry.montant} €
-            ${entry.note ? `<br><small style="color:#94a3b8">${entry.note}</small>` : ''}
-          </div>
-          <div class="date">${new Date(entry.created_at).toLocaleDateString('fr-FR')}</div>
-        </li>
-      `).join('');
-    }
+                    <!-- Tableau des prestations / Lignes de facture -->
+                    <table class="w-full text-left mb-8 border-collapse">
+                        <thead>
+                            <tr class="border-b-2 border-slate-300 text-xs font-semibold uppercase text-slate-500">
+                                <th class="py-3 px-2">Description</th>
+                                <th class="py-3 px-2 text-center w-20">Quantité</th>
+                                <th class="py-3 px-2 text-right w-28">Prix Unitaire</th>
+                                <th class="py-3 px-2 text-right w-28">Total HT</th>
+                                <th class="py-3 px-2 text-center w-10 no-print"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="invoice-items-body" class="divide-y divide-slate-200 text-sm">
+                            <!-- Lignes générées en JS -->
+                        </tbody>
+                    </table>
 
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const km = document.getElementById('km').value;
-      const montant = document.getElementById('montant').value;
-      const note = document.getElementById('note').value;
+                    <button onclick="addInvoiceRow()" class="no-print bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-2 rounded-lg border border-slate-300 transition mb-6">
+                        + Ajouter une ligne de prestation
+                    </button>
 
-      const { error } = await supabase
-        .from('trajets')
-        .insert([{ km, montant, note }]);
+                    <!-- Calculs Totaux -->
+                    <div class="flex justify-end mb-8">
+                        <div class="w-64 space-y-2 text-sm">
+                            <div class="flex justify-between text-slate-600">
+                                <span>Total HT :</span>
+                                <span id="view-total-ht" class="font-medium">0.00 €</span>
+                            </div>
+                            <div class="flex justify-between text-slate-600">
+                                <span>TVA (<span id="view-tva-rate">20</span>%) :</span>
+                                <span id="view-total-tva" class="font-medium">0.00 €</span>
+                            </div>
+                            <div class="flex justify-between text-slate-900 border-t border-slate-300 pt-2 font-bold text-lg">
+                                <span>Total TTC :</span>
+                                <span id="view-total-ttc" class="text-indigo-600">0.00 €</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-      if (error) {
-        alert("Erreur lors de l'enregistrement");
-        console.error(error);
-      } else {
-        form.reset();
-        fetchLogs();
-      }
-    });
+                <!-- Pied de page officiel avec Mentions Légales Obligatoires -->
+                <div class="border-t border-slate-200 pt-6 text-center text-xs text-slate-500 space-y-1">
+                    <p class="font-semibold text-slate-600">Paiement par virement bancaire sous 30 jours à compter de la date d'émission.</p>
+                    <p>En cas de retard de paiement, une pénalité égale à 3 fois le taux d'intérêt légal sera appliquée, ainsi qu'une indemnité forfaitaire pour frais de recouvrement de 40 €.</p>
+                    <p class="text-[10px] text-slate-400 mt-2">Document généré électroniquement via Facturation Pro.</p>
+                </div>
+            </div>
+        </div>
+    </main>
 
-    fetchLogs();
-  </script>
-</body>
-</html>
+    <!-- Modal Ajouter Client (IndexedDB) -->
+    <div id="client-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50 no-print">
+        <div class="bg-white rounded-xl shadow
