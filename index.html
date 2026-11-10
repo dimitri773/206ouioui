@@ -1,196 +1,707 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Facturation Pro - Générateur Officiel de Factures & Devis</title>
+    <title>NETFLIX - Notre Histoire d'Amour</title>
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        netflixRed: '#E50914',
+                        netflixDark: '#141414',
+                        netflixGray: '#181818',
+                        netflixCard: '#2F2F2F'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
-        @media print {
-            .no-print { display: none !important; }
-            .print-only { display: block !important; }
-            body { background: white !important; font-size: 12pt; }
-            .invoice-page { shadow: none !important; border: none !important; padding: 0 !important; width: 100% !important; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #141414;
+            color: #ffffff;
+            overflow-x: hidden;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            height: 8px;
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #141414;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #E50914;
+        }
+
+        /* Hide Scrollbar for horizontal scroll rows */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        /* Backdrop Gradient overlay */
+        .hero-gradient {
+            background: linear-gradient(180deg, rgba(20,20,20,0.4) 0%, rgba(20,20,20,0.8) 75%, rgba(20,20,20,1) 100%),
+                        linear-gradient(90deg, rgba(20,20,20,0.9) 0%, rgba(20,20,20,0.4) 50%, rgba(20,20,20,0.1) 100%);
+        }
+
+        /* Card Hover Scale and Depth */
+        .movie-card {
+            transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow 0.3s ease;
+        }
+        .movie-card:hover {
+            transform: scale(1.08) translateY(-6px);
+            z-index: 30;
+            box-shadow: 0 14px 28px rgba(0,0,0,0.6), 0 10px 10px rgba(0,0,0,0.5);
+        }
+
+        /* Modal Overlay Fade */
+        .modal-blur {
+            backdrop-filter: blur(8px);
         }
     </style>
 </head>
-<body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col">
+<body class="relative min-h-screen pb-16 selection:bg-netflixRed selection:text-white">
 
-    <!-- Navbar (Cachée à l'impression) -->
-    <header class="bg-slate-900 text-white shadow-lg no-print">
-        <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-            <div class="flex items-center gap-3">
-                <span class="text-2xl">💼</span>
-                <h1 class="text-xl font-bold tracking-wide">Facturation Pro</h1>
+    <!-- NAVBAR -->
+    <nav id="navbar" class="fixed top-0 left-0 right-0 z-50 transition-all duration-500 bg-gradient-to-b from-black/90 to-transparent px-4 sm:px-8 py-4 flex items-center justify-between">
+        <div class="flex items-center space-x-6 lg:space-x-10">
+            <!-- Logo -->
+            <a href="#" class="text-netflixRed text-2xl sm:text-3xl font-extrabold tracking-wider flex items-center gap-1">
+                <span>NETFLIX</span>
+                <i class="fa-solid fa-heart text-xs text-netflixRed animate-pulse"></i>
+            </a>
+
+            <!-- Navigation Links -->
+            <ul class="hidden md:flex space-x-5 text-sm text-gray-300 font-medium">
+                <li><a href="#" class="text-white font-bold hover:text-gray-300 transition">Accueil</a></li>
+                <li><a href="#voyages" class="hover:text-gray-400 transition">Voyages</a></li>
+                <li><a href="#complicite" class="hover:text-gray-400 transition">Complicité</a></li>
+                <li><a href="#soirees" class="hover:text-gray-400 transition">Soirées & Restos</a></li>
+                <li><a href="#nouveautes" class="hover:text-gray-400 transition">Nouveautés</a></li>
+                <li><a href="#" onclick="filterFavorites()" class="hover:text-gray-400 transition flex items-center gap-1">Ma Liste <i class="fa-solid fa-bookmark text-xs"></i></a></li>
+            </ul>
+        </div>
+
+        <!-- Right Menu (Search, Upload, Profile) -->
+        <div class="flex items-center space-x-4 sm:space-x-6">
+            <!-- Search Bar -->
+            <div class="relative flex items-center">
+                <i class="fa-solid fa-magnifying-glass text-gray-300 absolute left-3 pointer-events-none text-sm"></i>
+                <input type="text" id="searchInput" placeholder="Rechercher un souvenir..." 
+                    oninput="handleSearch()"
+                    class="bg-black/60 border border-gray-700 text-xs sm:text-sm text-white pl-9 pr-4 py-1.5 rounded-full focus:outline-none focus:border-netflixRed w-32 sm:w-48 transition-all duration-300">
             </div>
-            <div class="flex items-center gap-4">
-                <button onclick="exportPDF()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-2 rounded-lg shadow transition flex items-center gap-2">
-                    📄 Télécharger en PDF
+
+            <!-- Upload Photo Button -->
+            <button onclick="openUploadModal()" class="bg-netflixRed hover:bg-red-700 text-white px-3 py-1.5 rounded-md text-xs sm:text-sm font-semibold flex items-center gap-2 transition shadow-lg shadow-red-900/40">
+                <i class="fa-solid fa-plus"></i>
+                <span class="hidden sm:inline">Ajouter Photos</span>
+            </button>
+
+            <!-- Notifications Icon -->
+            <button class="text-gray-300 hover:text-white relative">
+                <i class="fa-solid fa-bell text-lg"></i>
+                <span class="absolute -top-1 -right-1 bg-netflixRed text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">3</span>
+            </button>
+
+            <!-- Profile Avatar -->
+            <div class="flex items-center space-x-2 cursor-pointer group">
+                <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-md bg-gradient-to-tr from-netflixRed to-pink-500 flex items-center justify-center text-white font-bold text-sm shadow-md ring-2 ring-transparent group-hover:ring-white transition">
+                    D&C
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- HERO BANNER SECTION -->
+    <header class="relative w-full h-[75vh] sm:h-[85vh] flex items-end pb-12 sm:pb-20 px-4 sm:px-12 overflow-hidden">
+        <!-- Hero Background Image -->
+        <img id="heroImage" src="https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?auto=format&fit=crop&w=1920&q=80" 
+             alt="Hero Couple" class="absolute inset-0 w-full h-full object-cover object-center transition-opacity duration-1000">
+        
+        <!-- Hero Overlay Gradients -->
+        <div class="absolute inset-0 hero-gradient"></div>
+
+        <!-- Hero Content -->
+        <div class="relative z-10 max-w-2xl space-y-4">
+            <div class="flex items-center space-x-2">
+                <span class="bg-netflixRed text-white text-[10px] font-black px-2 py-0.5 rounded tracking-widest uppercase">LOVE ORIGINAL</span>
+                <span class="text-green-400 font-bold text-sm">99% Match Amour</span>
+                <span class="border border-gray-500 text-gray-300 text-xs px-1.5 py-0.5 rounded">4K Ultra HD</span>
+            </div>
+
+            <h1 id="heroTitle" class="text-3xl sm:text-5xl md:text-6xl font-black text-white tracking-tight drop-shadow-md">
+                Notre Plus Belle Aventure
+            </h1>
+
+            <p id="heroDesc" class="text-sm sm:text-base text-gray-200 line-clamp-3 drop-shadow leading-relaxed">
+                Une saga romantique d'exception avec Dimitri et Sofiya. Découvrez les moments inoubliables, les fous rires, les escapades aux quatre coins du monde et la complicité de tous les jours.
+            </p>
+
+            <!-- Action Buttons -->
+            <div class="flex items-center space-x-3 pt-2">
+                <button onclick="playHeroContent()" class="bg-white hover:bg-gray-200 text-black px-6 py-2.5 rounded-md font-bold text-sm sm:text-base flex items-center gap-2 transition transform active:scale-95 shadow-md">
+                    <i class="fa-solid fa-play text-lg"></i> Lecture
                 </button>
-                <button onclick="window.print()" class="bg-slate-700 hover:bg-slate-600 text-white text-sm font-semibold px-4 py-2 rounded-lg transition">
-                    🖨️ Imprimer
+                <button onclick="openHeroDetails()" class="bg-gray-600/70 hover:bg-gray-600/90 text-white px-5 py-2.5 rounded-md font-bold text-sm sm:text-base flex items-center gap-2 backdrop-blur-md transition transform active:scale-95">
+                    <i class="fa-solid fa-circle-info text-lg"></i> Plus d'infos
                 </button>
             </div>
         </div>
     </header>
 
-    <main class="max-w-7xl mx-auto px-6 py-8 flex-grow w-full grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
-        <!-- Panneau de configuration / Édition (Caché à l'impression) -->
-        <div class="lg:col-span-5 space-y-6 no-print">
-            
-            <!-- Gestionnaire de Clients (IndexedDB) -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                <h2 class="text-lg font-bold text-slate-900 mb-4 flex items-center justify-between">
-                    <span>👥 Clients en Base de Données</span>
-                    <button onclick="openClientModal()" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium px-2.5 py-1.5 rounded">
-                        + Ajouter Client
-                    </button>
-                </h2>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Sélectionner un client enregistré</label>
-                    <select id="client-select" onchange="loadSelectedClient()" class="w-full border rounded-lg px-3 py-2 text-sm bg-slate-50 border-slate-300">
-                        <option value="">-- Choisir un client --</option>
-                    </select>
+    <!-- CONTENT ROWS CONTAINER -->
+    <main class="relative z-20 space-y-8 sm:space-y-12 -mt-10 sm:-mt-16 px-4 sm:px-10">
+
+        <!-- ROW 1: Voyages -->
+        <section id="voyages" class="space-y-3">
+            <h2 class="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+                Tendance actuelle : Nos Plus Beaux Voyages
+                <span class="text-netflixRed text-xs font-normal hover:underline cursor-pointer">Tout voir</span>
+            </h2>
+            <div class="relative group">
+                <div id="row-voyages" class="flex space-x-4 overflow-x-auto no-scrollbar py-4 scroll-smooth">
+                    <!-- Cards populated by JS -->
                 </div>
             </div>
+        </section>
 
-            <!-- Éditeur de la Facture -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
-                <h2 class="text-lg font-bold text-slate-900 border-b pb-3">⚙️ Options du Document</h2>
-                
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Type</label>
-                        <select id="input-doc-type" onchange="updateInvoice()" class="w-full border rounded-lg px-3 py-2 text-sm border-slate-300">
-                            <option value="FACTURE">FACTURE</option>
-                            <option value="DEVIS">DEVIS</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">N° Document</label>
-                        <input type="text" id="input-number" value="FAC-2026-001" oninput="updateInvoice()" class="w-full border rounded-lg px-3 py-2 text-sm border-slate-300">
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Date d'émission</label>
-                        <input type="date" id="input-date" onchange="updateInvoice()" class="w-full border rounded-lg px-3 py-2 text-sm border-slate-300">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Date d'échéance</label>
-                        <input type="date" id="input-due-date" onchange="updateInvoice()" class="w-full border rounded-lg px-3 py-2 text-sm border-slate-300">
-                    </div>
-                </div>
-
-                <!-- Informations Émetteur (Vos données) -->
-                <div class="border-t pt-4 space-y-2">
-                    <h3 class="text-sm font-semibold text-slate-700">Vos Informations (Émetteur)</h3>
-                    <input type="text" id="issuer-name" value="Mon Entreprise SAS" placeholder="Nom ou Raison sociale" oninput="updateInvoice()" class="w-full border rounded px-2.5 py-1.5 text-xs border-slate-300">
-                    <input type="text" id="issuer-address" value="10 rue de la Paix, 75000 Paris" placeholder="Adresse complète" oninput="updateInvoice()" class="w-full border rounded px-2.5 py-1.5 text-xs border-slate-300">
-                    <div class="grid grid-cols-2 gap-2">
-                        <input type="text" id="issuer-siret" value="SIRET: 123 456 789 00012" placeholder="N° SIRET" oninput="updateInvoice()" class="w-full border rounded px-2.5 py-1.5 text-xs border-slate-300">
-                        <input type="text" id="issuer-tva" value="TVA: FR 12 123456789" placeholder="N° TVA intra" oninput="updateInvoice()" class="w-full border rounded px-2.5 py-1.5 text-xs border-slate-300">
-                    </div>
-                </div>
-
-                <!-- Taux de TVA -->
-                <div class="border-t pt-4">
-                    <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Taux de TVA (%)</label>
-                    <input type="number" id="input-tva-rate" value="20" step="0.1" oninput="updateInvoice()" class="w-full border rounded-lg px-3 py-2 text-sm border-slate-300">
-                </div>
-
-                <!-- Envoi rapide Gmail -->
-                <div class="border-t pt-4">
-                    <button onclick="sendViaGmail()" class="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2.5 rounded-lg text-sm shadow transition flex items-center justify-center gap-2">
-                        ✉️ Préparer l'envoi Gmail
-                    </button>
-                </div>
-
-            </div>
-        </div>
-
-        <!-- Prévisualisation & Document VRAIE FACTURE (Format A4 Imprimable / PDF) -->
-        <div class="lg:col-span-7 flex justify-center">
-            <div id="invoice-paper" class="invoice-page bg-white rounded-lg shadow-xl border border-slate-200 p-8 md:p-12 w-full max-w-[210mm] min-h-[297mm] flex flex-col justify-between text-slate-800">
-                
-                <div>
-                    <!-- En-tête Facture -->
-                    <div class="flex justify-between items-start border-b border-slate-200 pb-8 mb-8">
-                        <div>
-                            <h2 id="view-issuer-name" class="text-2xl font-bold text-slate-900">Mon Entreprise SAS</h2>
-                            <p id="view-issuer-address" class="text-sm text-slate-600 mt-1 whitespace-pre-line">10 rue de la Paix, 75000 Paris</p>
-                            <p id="view-issuer-siret" class="text-xs text-slate-500 mt-2">SIRET: 123 456 789 00012</p>
-                            <p id="view-issuer-tva" class="text-xs text-slate-500">TVA: FR 12 123456789</p>
-                        </div>
-                        <div class="text-right">
-                            <span id="view-doc-type" class="inline-block px-3 py-1 bg-indigo-100 text-indigo-800 font-bold text-sm tracking-wider uppercase rounded mb-2">FACTURE</span>
-                            <p id="view-doc-number" class="text-lg font-semibold text-slate-900">N° FAC-2026-001</p>
-                            <p class="text-xs text-slate-500 mt-2">Date: <span id="view-date" class="font-medium text-slate-700"></span></p>
-                            <p class="text-xs text-slate-500">Échéance: <span id="view-due-date" class="font-medium text-slate-700"></span></p>
-                        </div>
-                    </div>
-
-                    <!-- Informations Client destinataire -->
-                    <div class="bg-slate-50 rounded-lg p-5 mb-8 border border-slate-100">
-                        <p class="text-xs font-bold uppercase text-slate-400 tracking-wider mb-2">Facturé à :</p>
-                        <h3 id="view-client-name" class="text-lg font-bold text-slate-900">Client Démo SARL</h3>
-                        <p id="view-client-address" class="text-sm text-slate-600 whitespace-pre-line">42 Avenue des Champs-Élysées, 75008 Paris</p>
-                        <p id="view-client-email" class="text-sm text-slate-600 mt-1">contact@clientdemo.fr</p>
-                        <p id="view-client-siret" class="text-xs text-slate-500 mt-1">SIRET: 987 654 321 00054</p>
-                    </div>
-
-                    <!-- Tableau des prestations / Lignes de facture -->
-                    <table class="w-full text-left mb-8 border-collapse">
-                        <thead>
-                            <tr class="border-b-2 border-slate-300 text-xs font-semibold uppercase text-slate-500">
-                                <th class="py-3 px-2">Description</th>
-                                <th class="py-3 px-2 text-center w-20">Quantité</th>
-                                <th class="py-3 px-2 text-right w-28">Prix Unitaire</th>
-                                <th class="py-3 px-2 text-right w-28">Total HT</th>
-                                <th class="py-3 px-2 text-center w-10 no-print"></th>
-                            </tr>
-                        </thead>
-                        <tbody id="invoice-items-body" class="divide-y divide-slate-200 text-sm">
-                            <!-- Lignes générées en JS -->
-                        </tbody>
-                    </table>
-
-                    <button onclick="addInvoiceRow()" class="no-print bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-2 rounded-lg border border-slate-300 transition mb-6">
-                        + Ajouter une ligne de prestation
-                    </button>
-
-                    <!-- Calculs Totaux -->
-                    <div class="flex justify-end mb-8">
-                        <div class="w-64 space-y-2 text-sm">
-                            <div class="flex justify-between text-slate-600">
-                                <span>Total HT :</span>
-                                <span id="view-total-ht" class="font-medium">0.00 €</span>
-                            </div>
-                            <div class="flex justify-between text-slate-600">
-                                <span>TVA (<span id="view-tva-rate">20</span>%) :</span>
-                                <span id="view-total-tva" class="font-medium">0.00 €</span>
-                            </div>
-                            <div class="flex justify-between text-slate-900 border-t border-slate-300 pt-2 font-bold text-lg">
-                                <span>Total TTC :</span>
-                                <span id="view-total-ttc" class="text-indigo-600">0.00 €</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Pied de page officiel avec Mentions Légales Obligatoires -->
-                <div class="border-t border-slate-200 pt-6 text-center text-xs text-slate-500 space-y-1">
-                    <p class="font-semibold text-slate-600">Paiement par virement bancaire sous 30 jours à compter de la date d'émission.</p>
-                    <p>En cas de retard de paiement, une pénalité égale à 3 fois le taux d'intérêt légal sera appliquée, ainsi qu'une indemnité forfaitaire pour frais de recouvrement de 40 €.</p>
-                    <p class="text-[10px] text-slate-400 mt-2">Document généré électroniquement via Facturation Pro.</p>
+        <!-- ROW 2: Moments Complicité -->
+        <section id="complicite" class="space-y-3">
+            <h2 class="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+                Repris récemment : Moments Complicité & Fous Rires
+            </h2>
+            <div class="relative group">
+                <div id="row-complicite" class="flex space-x-4 overflow-x-auto no-scrollbar py-4 scroll-smooth">
+                    <!-- Cards populated by JS -->
                 </div>
             </div>
-        </div>
+        </section>
+
+        <!-- ROW 3: Soirées & Restos -->
+        <section id="soirees" class="space-y-3">
+            <h2 class="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+                Recommandé pour vous : Soirées, Restos & Dates
+            </h2>
+            <div class="relative group">
+                <div id="row-soirees" class="flex space-x-4 overflow-x-auto no-scrollbar py-4 scroll-smooth">
+                    <!-- Cards populated by JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ROW 4: Nouveautés -->
+        <section id="nouveautes" class="space-y-3">
+            <h2 class="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+                Nouveautés & Dernières Photos
+            </h2>
+            <div class="relative group">
+                <div id="row-nouveautes" class="flex space-x-4 overflow-x-auto no-scrollbar py-4 scroll-smooth">
+                    <!-- Cards populated by JS -->
+                </div>
+            </div>
+        </section>
+
     </main>
 
-    <!-- Modal Ajouter Client (IndexedDB) -->
-    <div id="client-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50 no-print">
-        <div class="bg-white rounded-xl shadow
+    <!-- LIGHTBOX / MEDIA PLAYER MODAL -->
+    <div id="playerModal" class="fixed inset-0 z-50 hidden bg-black/95 backdrop-blur-xl flex flex-col justify-between items-center transition-opacity duration-300">
+        <!-- Top Control Bar -->
+        <div class="w-full p-4 flex justify-between items-center bg-gradient-to-b from-black/80 to-transparent z-10">
+            <div class="flex items-center space-x-3">
+                <span class="text-netflixRed font-extrabold text-lg">LOVEFLIX PLAYER</span>
+                <span class="text-gray-400">|</span>
+                <h3 id="playerTitle" class="text-white font-semibold text-sm sm:text-base">Titre de la photo</h3>
+            </div>
+            <button onclick="closePlayerModal()" class="text-gray-400 hover:text-white text-2xl p-2 rounded-full hover:bg-gray-800/60 transition">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <!-- Central Media Viewport -->
+        <div class="relative w-full flex-1 flex items-center justify-center p-4">
+            <img id="playerImage" src="" alt="Lecteur Souvenirs" class="max-h-[75vh] max-w-full object-contain rounded-lg shadow-2xl transition-all duration-500">
+            
+            <!-- Navigation Arrows -->
+            <button onclick="prevSlide()" class="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-netflixRed text-white w-12 h-12 rounded-full flex items-center justify-center text-xl backdrop-blur-sm transition">
+                <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            <button onclick="nextSlide()" class="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-netflixRed text-white w-12 h-12 rounded-full flex items-center justify-center text-xl backdrop-blur-sm transition">
+                <i class="fa-solid fa-chevron-right"></i>
+            </button>
+        </div>
+
+        <!-- Bottom Controls Scrubber Bar -->
+        <div class="w-full max-w-4xl p-4 sm:p-6 space-y-2 bg-gradient-to-t from-black to-transparent">
+            <!-- Timeline Scrubber -->
+            <div class="w-full bg-gray-700 h-1.5 rounded-full overflow-hidden cursor-pointer" onclick="seekTimeline(event)">
+                <div id="playerProgress" class="bg-netflixRed h-full w-0 transition-all duration-300"></div>
+            </div>
+            
+            <div class="flex justify-between items-center text-xs sm:text-sm text-gray-300">
+                <div class="flex items-center space-x-4">
+                    <button id="playPauseBtn" onclick="togglePlayPause()" class="text-white text-xl hover:text-netflixRed transition">
+                        <i class="fa-solid fa-play"></i>
+                    </button>
+                    <span id="playerTime">00:15 / 02:30</span>
+                    <span id="playerBadge" class="bg-red-950 text-red-400 border border-red-800 text-[10px] px-2 py-0.5 rounded">Épisode Spécial</span>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <button onclick="toggleFavoriteCurrent()" id="modalFavBtn" class="hover:text-netflixRed transition"><i class="fa-regular fa-heart text-lg"></i></button>
+                    <button onclick="openEditDetailsModal()" class="hover:text-white transition" title="Modifier infos"><i class="fa-solid fa-pen text-sm"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- UPLOAD MODAL -->
+    <div id="uploadModal" class="fixed inset-0 z-50 hidden bg-black/80 modal-blur flex items-center justify-center p-4">
+        <div class="bg-netflixDark border border-gray-800 w-full max-w-md rounded-xl p-6 space-y-5 shadow-2xl relative">
+            <button onclick="closeUploadModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+
+            <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                <i class="fa-solid fa-cloud-arrow-up text-netflixRed"></i> Ajouter un Nouveau Souvenir
+            </h3>
+
+            <form id="uploadForm" onsubmit="handleUploadSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Titre du souvenir</label>
+                    <input type="text" id="inputTitle" required placeholder="Ex: Week-end à Paris" class="w-full bg-netflixGray border border-gray-700 rounded-md p-2.5 text-sm text-white focus:outline-none focus:border-netflixRed">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Catégorie</label>
+                    <select id="inputCategory" class="w-full bg-netflixGray border border-gray-700 rounded-md p-2.5 text-sm text-white focus:outline-none focus:border-netflixRed">
+                        <option value="voyages">Voyages</option>
+                        <option value="complicite">Moments Complicité</option>
+                        <option value="soirees">Soirées & Restos</option>
+                        <option value="nouveautes">Nouveautés</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Image (Fichier local ou URL)</label>
+                    <input type="file" id="inputFile" accept="image/*" class="w-full text-xs text-gray-400 bg-netflixGray p-2 rounded border border-gray-700 mb-2">
+                    <span class="text-xs text-gray-500 block text-center mb-1">OU URL d'image direct</span>
+                    <input type="url" id="inputUrl" placeholder="https://..." class="w-full bg-netflixGray border border-gray-700 rounded-md p-2 text-xs text-white focus:outline-none focus:border-netflixRed">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Date / Description</label>
+                    <input type="text" id="inputDesc" placeholder="Ex: Été 2026 - Souvenir inoubliable" class="w-full bg-netflixGray border border-gray-700 rounded-md p-2.5 text-sm text-white focus:outline-none focus:border-netflixRed">
+                </div>
+
+                <button type="submit" class="w-full bg-netflixRed hover:bg-red-700 text-white font-bold py-3 rounded-md transition text-sm">
+                    Publier dans LOVEFLIX
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="mt-20 border-t border-gray-800 pt-10 pb-6 px-4 sm:px-12 text-gray-500 text-xs text-center space-y-3">
+        <div class="flex justify-center space-x-6 text-gray-400 text-lg">
+            <a href="#" class="hover:text-netflixRed"><i class="fa-brands fa-instagram"></i></a>
+            <a href="#" class="hover:text-netflixRed"><i class="fa-solid fa-heart"></i></a>
+            <a href="#" class="hover:text-netflixRed"><i class="fa-solid fa-camera"></i></a>
+        </div>
+        <p>© 2026 LOVEFLIX - Dimitri & sa copine. Tous droits réservés à notre bonheur.</p>
+    </footer>
+
+    <!-- JAVASCRIPT APP LOGIC -->
+    <script>
+        // Initial Mock Database
+        let mediaData = [
+            // Voyages
+            {
+                id: 1,
+                title: "Escapade à Santorini",
+                category: "voyages",
+                image: "https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?auto=format&fit=crop&w=800&q=80",
+                year: "2025",
+                duration: "7 jours",
+                match: "99%",
+                desc: "Notre voyage magique en Grèce avec les couchers de soleil inoubliables sur les maisons blanches.",
+                isFavorite: true
+            },
+            {
+                id: 2,
+                title: "Roadtrip en Italie",
+                category: "voyages",
+                image: "https://images.unsplash.com/photo-1523906834658-6e24ef2386f9?auto=format&fit=crop&w=800&q=80",
+                year: "2024",
+                duration: "10 jours",
+                match: "98%",
+                desc: "Balades en Vespa, pâtes fraîches et découverte de Venise main dans la main.",
+                isFavorite: false
+            },
+            {
+                id: 3,
+                title: "Week-end à la Montagne",
+                category: "voyages",
+                image: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800&q=80",
+                year: "2026",
+                duration: "3 jours",
+                match: "95%",
+                desc: "Chalet cocooning au coin du feu après une journée de ski mémorable.",
+                isFavorite: true
+            },
+            {
+                id: 4,
+                title: "Plage Tropicale & Cocotiers",
+                category: "voyages",
+                image: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80",
+                year: "2025",
+                duration: "2 semaines",
+                match: "99%",
+                desc: "Eau turquoise, bronzette et cocktails face à la mer.",
+                isFavorite: false
+            },
+
+            // Complicité
+            {
+                id: 5,
+                title: "Session Fous Rires en Cuisine",
+                category: "complicite",
+                image: "https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=800&q=80",
+                year: "2026",
+                duration: "1 Épisode",
+                match: "97%",
+                desc: "Quand on a essayé de faire une pizza maison et qu'on a tout recouvert de farine !",
+                isFavorite: true
+            },
+            {
+                id: 6,
+                title: "Promenade Automnale au Parc",
+                category: "complicite",
+                image: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=800&q=80",
+                year: "2025",
+                duration: "Après-midi",
+                match: "96%",
+                desc: "Les couleurs d'automne, un chocolat chaud et nos meilleures conversations.",
+                isFavorite: false
+            },
+            {
+                id: 7,
+                title: "Pique-nique au Coucher du Soleil",
+                category: "complicite",
+                image: "https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?auto=format&fit=crop&w=800&q=80",
+                year: "2025",
+                duration: "Soirée",
+                match: "100%",
+                desc: "Simplicité et amour sur une couverture face au soleil couchant.",
+                isFavorite: true
+            },
+
+            // Soirées & Restos
+            {
+                id: 8,
+                title: "Dîner aux Chandelles",
+                category: "soirees",
+                image: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80",
+                year: "2026",
+                duration: "Saint-Valentin",
+                match: "99%",
+                desc: "Repas gastronomique pour célébrer notre anniversaire d'amour.",
+                isFavorite: false
+            },
+            {
+                id: 9,
+                title: "Soirée Cocktails & Rooftop",
+                category: "soirees",
+                image: "https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&w=800&q=80",
+                year: "2025",
+                duration: "Nuit entière",
+                match: "94%",
+                desc: "Vue panoramique sur la ville éclairée avec nos meilleurs cocktails.",
+                isFavorite: false
+            },
+
+            // Nouveautés
+            {
+                id: 10,
+                title: "Dernier Week-end Surprise",
+                category: "nouveautes",
+                image: "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=800&q=80",
+                year: "2026",
+                duration: "Nouveau",
+                match: "100%",
+                desc: "Petite escapade improvisée décidée sur un coup de tête !",
+                isFavorite: true
+            }
+        ];
+
+        let currentActiveIndex = 0;
+        let isPlaying = false;
+        let playInterval = null;
+
+        // Render Cards Function
+        function renderRows(filteredItems = null) {
+            const dataToUse = filteredItems || mediaData;
+            const categories = ['voyages', 'complicite', 'soirees', 'nouveautes'];
+
+            categories.forEach(cat => {
+                const container = document.getElementById(`row-${cat}`);
+                if (!container) return;
+                
+                const items = dataToUse.filter(item => item.category === cat);
+                container.innerHTML = '';
+
+                if (items.length === 0) {
+                    container.innerHTML = `<p class="text-gray-500 text-xs italic py-4">Aucun souvenir dans cette catégorie pour l'instant.</p>`;
+                    return;
+                }
+
+                items.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = "movie-card min-w-[220px] sm:min-w-[280px] bg-netflixCard rounded-md overflow-hidden cursor-pointer relative group flex-shrink-0";
+                    card.onclick = () => openPlayerModal(item.id);
+
+                    card.innerHTML = `
+                        <div class="relative h-36 sm:h-44 w-full">
+                            <img src="${item.image}" alt="${item.title}" class="w-full h-full object-cover">
+                            <div class="absolute inset-0 bg-gradient-to-t from-netflixCard via-transparent to-transparent opacity-80"></div>
+                            <span class="absolute top-2 right-2 bg-black/60 backdrop-blur-md text-[10px] text-green-400 font-bold px-1.5 py-0.5 rounded">
+                                ${item.match}
+                            </span>
+                        </div>
+                        <div class="p-3 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <h4 class="font-bold text-sm text-white truncate">${item.title}</h4>
+                                <button onclick="event.stopPropagation(); toggleFavorite(${item.id})" class="text-gray-400 hover:text-netflixRed transition">
+                                    <i class="${item.isFavorite ? 'fa-solid text-netflixRed' : 'fa-regular'} fa-heart"></i>
+                                </button>
+                            </div>
+                            <div class="flex items-center text-[11px] text-gray-400 space-x-2">
+                                <span>${item.year}</span>
+                                <span>•</span>
+                                <span class="border border-gray-600 px-1 rounded text-[9px]">${item.duration}</span>
+                            </div>
+                            <p class="text-xs text-gray-400 line-clamp-2">${item.desc}</p>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            });
+        }
+
+        // Search Filter
+        function handleSearch() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            if (!query) {
+                renderRows();
+                return;
+            }
+            const filtered = mediaData.filter(item => 
+                item.title.toLowerCase().includes(query) || 
+                item.desc.toLowerCase().includes(query)
+            );
+            renderRows(filtered);
+        }
+
+        // Favorite Filter
+        function filterFavorites() {
+            const favorites = mediaData.filter(item => item.isFavorite);
+            renderRows(favorites);
+        }
+
+        // Toggle Favorite
+        function toggleFavorite(id) {
+            const item = mediaData.find(i => i.id === id);
+            if (item) {
+                item.isFavorite = !item.isFavorite;
+                renderRows();
+            }
+        }
+
+        function toggleFavoriteCurrent() {
+            const currentItem = mediaData[currentActiveIndex];
+            if (currentItem) {
+                toggleFavorite(currentItem.id);
+                updateModalFavIcon();
+            }
+        }
+
+        function updateModalFavIcon() {
+            const currentItem = mediaData[currentActiveIndex];
+            const icon = document.querySelector('#modalFavBtn i');
+            if (currentItem && icon) {
+                icon.className = currentItem.isFavorite ? 'fa-solid fa-heart text-netflixRed text-lg' : 'fa-regular fa-heart text-lg';
+            }
+        }
+
+        // PLAYER MODAL FUNCTIONS
+        function openPlayerModal(id) {
+            const index = mediaData.findIndex(item => item.id === id);
+            if (index !== -1) {
+                currentActiveIndex = index;
+                updatePlayerContent();
+                document.getElementById('playerModal').classList.remove('hidden');
+                startSlideshow();
+            }
+        }
+
+        function playHeroContent() {
+            openPlayerModal(mediaData[0].id);
+        }
+
+        function openHeroDetails() {
+            openPlayerModal(mediaData[0].id);
+        }
+
+        function closePlayerModal() {
+            document.getElementById('playerModal').classList.add('hidden');
+            stopSlideshow();
+        }
+
+        function updatePlayerContent() {
+            const item = mediaData[currentActiveIndex];
+            if (!item) return;
+
+            document.getElementById('playerTitle').textContent = `${item.title} (${item.year})`;
+            document.getElementById('playerImage').src = item.image;
+            document.getElementById('playerProgress').style.width = `${((currentActiveIndex + 1) / mediaData.length) * 100}%`;
+            document.getElementById('playerTime').textContent = `Photo ${currentActiveIndex + 1} sur ${mediaData.length}`;
+            updateModalFavIcon();
+        }
+
+        function nextSlide() {
+            currentActiveIndex = (currentActiveIndex + 1) % mediaData.length;
+            updatePlayerContent();
+        }
+
+        function prevSlide() {
+            currentActiveIndex = (currentActiveIndex - 1 + mediaData.length) % mediaData.length;
+            updatePlayerContent();
+        }
+
+        function togglePlayPause() {
+            if (isPlaying) {
+                stopSlideshow();
+            } else {
+                startSlideshow();
+            }
+        }
+
+        function startSlideshow() {
+            isPlaying = true;
+            document.getElementById('playPauseBtn').innerHTML = `<i class="fa-solid fa-pause"></i>`;
+            if (playInterval) clearInterval(playInterval);
+            playInterval = setInterval(() => {
+                nextSlide();
+            }, 3500);
+        }
+
+        function stopSlideshow() {
+            isPlaying = false;
+            document.getElementById('playPauseBtn').innerHTML = `<i class="fa-solid fa-play"></i>`;
+            if (playInterval) clearInterval(playInterval);
+        }
+
+        function seekTimeline(e) {
+            const rect = e.currentTarget.getBoundingClientRect();
+            const clickPos = (e.clientX - rect.left) / rect.width;
+            currentActiveIndex = Math.floor(clickPos * mediaData.length);
+            updatePlayerContent();
+        }
+
+        // UPLOAD MODAL FUNCTIONS
+        function openUploadModal() {
+            document.getElementById('uploadModal').classList.remove('hidden');
+        }
+
+        function closeUploadModal() {
+            document.getElementById('uploadModal').classList.add('hidden');
+        }
+
+        function handleUploadSubmit(e) {
+            e.preventDefault();
+            const title = document.getElementById('inputTitle').value;
+            const category = document.getElementById('inputCategory').value;
+            const desc = document.getElementById('inputDesc').value || "Nouveau souvenir ajouté";
+            const fileInput = document.getElementById('inputFile');
+            const urlInput = document.getElementById('inputUrl').value;
+
+            let imageUrl = "https://images.unsplash.com/photo-1518199266791-5375a83190b7?auto=format&fit=crop&w=800&q=80";
+
+            if (fileInput.files && fileInput.files[0]) {
+                imageUrl = URL.createObjectURL(fileInput.files[0]);
+            } else if (urlInput) {
+                imageUrl = urlInput;
+            }
+
+            const newItem = {
+                id: Date.now(),
+                title: title,
+                category: category,
+                image: imageUrl,
+                year: "2026",
+                duration: "Récent",
+                match: "100%",
+                desc: desc,
+                isFavorite: true
+            };
+
+            mediaData.unshift(newItem);
+            renderRows();
+            closeUploadModal();
+            document.getElementById('uploadForm').reset();
+        }
+
+        // EDIT DETAILS MODAL / INLINE EDIT
+        function openEditDetailsModal() {
+            const currentItem = mediaData[currentActiveIndex];
+            const newTitle = prompt("Nouveau titre pour ce souvenir :", currentItem.title);
+            if (newTitle) {
+                currentItem.title = newTitle;
+                const newDesc = prompt("Nouvelle description :", currentItem.desc);
+                if (newDesc) currentItem.desc = newDesc;
+                updatePlayerContent();
+                renderRows();
+            }
+        }
+
+        // Navbar Scroll Effect
+        window.addEventListener('scroll', () => {
+            const navbar = document.getElementById('navbar');
+            if (window.scrollY > 50) {
+                navbar.classList.add('bg-black');
+                navbar.classList.remove('bg-gradient-to-b');
+            } else {
+                navbar.classList.remove('bg-black');
+                navbar.classList.add('bg-gradient-to-b');
+            }
+        });
+
+        // Initialize App on Load
+        window.onload = function() {
+            renderRows();
+        };
+    </script>
+</body>
+</html>
